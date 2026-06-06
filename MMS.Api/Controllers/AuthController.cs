@@ -1,9 +1,13 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using MMS.Api.Attributes;
+using MMS.Api.Extensions;
+using MMS.Domain.Common;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
-using MMS.Infrastructure.Persistence.Auth;
 using MMS.Infrastructure.Persistence;
+using MMS.Infrastructure.Persistence.Auth;
 
 namespace MMS.Api.Controllers;
 
@@ -20,7 +24,6 @@ public class AuthController(AppDbContext db, JwtService jwtService) : Controller
         if (string.IsNullOrWhiteSpace(req.LineUserId))
             return BadRequest(new { message = "LineUserId is required" });
 
-        // หา User จาก LineUserId
         var user = await db.Users
             .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
@@ -34,11 +37,9 @@ public class AuthController(AppDbContext db, JwtService jwtService) : Controller
         if (!user.IsActive)
             return Unauthorized(new { message = "บัญชีนี้ถูกระงับการใช้งาน" });
 
-        // อัปเดต LastLoginAt
         user.LastLoginAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        // รวบรวม permissions จากทุก Role
         var permissions = user.UserRoles
             .Where(ur => ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)
             .SelectMany(ur => ur.Role.RolePermissions)
@@ -64,7 +65,35 @@ public class AuthController(AppDbContext db, JwtService jwtService) : Controller
     }
 
     /// <summary>
-    /// ทดสอบ Seed DB (Dev only)
+    /// ดูข้อมูลตัวเองจาก JWT (ต้อง login ก่อน)
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    public IActionResult Me()
+    {
+        return Ok(new
+        {
+            userId = User.GetUserId(),
+            tenantId = User.GetTenantId(),
+            branchId = User.GetBranchId(),
+            displayName = User.GetDisplayName(),
+            permissions = User.GetPermissions()
+        });
+    }
+
+    /// <summary>
+    /// ทดสอบ RBAC — เฉพาะคนที่มีสิทธิ์ SETTINGS_EDIT เท่านั้น
+    /// </summary>
+    [HttpGet("test-permission")]
+    [Authorize]
+    [RequirePermission(PermissionCodes.SettingsEdit)]
+    public IActionResult TestPermission()
+    {
+        return Ok(new { message = $"✅ คุณมีสิทธิ์ {PermissionCodes.SettingsEdit}" });
+    }
+
+    /// <summary>
+    /// Seed ข้อมูลตัวอย่าง (Dev only)
     /// </summary>
     [HttpPost("seed")]
     public async Task<IActionResult> Seed()
