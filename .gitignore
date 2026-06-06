@@ -1,0 +1,17 @@
+﻿# Build outputs
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Secrets (ห้าม commit เด็ดขาด)
+MMS.Api/appsettings.json
+MMS.Api/appsettings.Production.json
+MMS.Api/appsettings.Staging.json
+
+# OS
+.DS_Store
+Thumbs.db
