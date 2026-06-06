@@ -65,6 +65,7 @@ builder.Services.AddAuthorization();
 
 // Services
 builder.Services.AddScoped<JwtService>();
+builder.Services.AddHttpClient<LineService>();
 
 // CORS สำหรับ React Dev
 builder.Services.AddCors(options =>

@@ -1,5 +1,6 @@
-﻿using System.IdentityModel.Tokens.Jwt;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -22,7 +23,6 @@ public class JwtService(IConfiguration config)
             new(ClaimTypes.Name, user.DisplayName),
         };
 
-        // ใส่ permissions ลงใน token ด้วย
         foreach (var perm in permissions)
             claims.Add(new Claim("permission", perm));
 
@@ -36,5 +36,23 @@ public class JwtService(IConfiguration config)
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>
+    /// สร้าง Refresh Token แบบ random (opaque token)
+    /// </summary>
+    public RefreshToken GenerateRefreshToken(Guid userId, string? deviceInfo = null)
+    {
+        var randomBytes = new byte[64];
+        RandomNumberGenerator.Fill(randomBytes);
+
+        return new RefreshToken
+        {
+            UserId = userId,
+            Token = Convert.ToBase64String(randomBytes),
+            ExpiresAt = DateTime.UtcNow.AddDays(
+                int.Parse(config["Jwt:RefreshTokenDays"] ?? "30")),
+            DeviceInfo = deviceInfo
+        };
     }
 }
