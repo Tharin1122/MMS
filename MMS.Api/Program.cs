@@ -8,6 +8,8 @@ using MMS.Infrastructure.Persistence;
 using MMS.Infrastructure.Persistence.Auth;
 using MMS.Infrastructure.Persistence.Interceptors;
 using MMS.Infrastructure.Persistence.Services;
+using Hangfire;
+using Hangfire.SqlServer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,12 +66,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+// Hangfire
+builder.Services.AddHangfire(c => c
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHangfireServer();
 builder.Services.AddHttpContextAccessor();
 // Services
 builder.Services.AddScoped<JwtService>();
-
+builder.Services.AddScoped<NotificationSenderService>();
+builder.Services.AddScoped<NotificationService>();
+builder.Services.AddHttpClient<NotificationSenderService>();
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<ActivityTimelineService>();
+
 builder.Services.AddHttpClient<LineService>();
 
 // CORS สำหรับ React Dev
@@ -90,5 +103,15 @@ app.UseCors("DevPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+// Hangfire Dashboard (Dev only)
+app.UseHangfireDashboard("/hangfire");
+
+// Recurring Job — ส่ง notification ทุก 1 นาที
+RecurringJob.AddOrUpdate<NotificationSenderService>(
+    "send-notifications",
+    svc => svc.ProcessPendingAsync(),
+    Cron.Minutely);
+
+
 
 app.Run();
