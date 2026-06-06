@@ -1,14 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using MMS.Domain.Common;
 using MMS.Domain.Entities;
-using System.Collections.Generic;
-using System.Data;
-using System.Reflection.Emit;
-using System.Security;
+using MMS.Infrastructure.Persistence.Interceptors;
 
 namespace MMS.Infrastructure.Persistence;
 
-public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
+public class AppDbContext(
+    DbContextOptions<AppDbContext> options,
+    AuditInterceptor? auditInterceptor = null) : DbContext(options)
 {
     // Phase 0 — Foundation
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -18,10 +17,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityTimeline> ActivityTimelines => Set<ActivityTimeline>();
     public DbSet<NotificationQueue> NotificationQueues => Set<NotificationQueue>();
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     // Phase 1 — Master Data
     public DbSet<Customer> Customers => Set<Customer>();
@@ -45,6 +44,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<PaymentItem> PaymentItems => Set<PaymentItem>();
 
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        if (auditInterceptor != null)
+            optionsBuilder.AddInterceptors(auditInterceptor);
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -55,13 +60,24 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     {
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
+            //if (entry.State == EntityState.Added)
+            //    entry.Entity.CreatedAt = DateTime.UtcNow;
+
+            //if (entry.State == EntityState.Modified)
+            //    entry.Entity.UpdatedAt = DateTime.UtcNow;
+
             if (entry.State == EntityState.Added)
-                entry.Entity.CreatedAt = DateTime.UtcNow;
+                entry.Entity.CreatedAt = ThaiNow;   // เปลี่ยนจาก DateTime.UtcNow
 
             if (entry.State == EntityState.Modified)
-                entry.Entity.UpdatedAt = DateTime.UtcNow;
+                entry.Entity.UpdatedAt = ThaiNow;   // เปลี่ยนจาก DateTime.UtcNow
         }
 
         return base.SaveChangesAsync(cancellationToken);
     }
+
+    private static DateTime ThaiNow =>
+        TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
 }

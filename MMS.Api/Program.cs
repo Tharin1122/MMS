@@ -6,6 +6,8 @@ using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using MMS.Infrastructure.Persistence;
 using MMS.Infrastructure.Persistence.Auth;
+using MMS.Infrastructure.Persistence.Interceptors;
+using MMS.Infrastructure.Persistence.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,9 +64,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
+builder.Services.AddHttpContextAccessor();
 // Services
 builder.Services.AddScoped<JwtService>();
+
+builder.Services.AddScoped<AuditInterceptor>();
+builder.Services.AddScoped<ActivityTimelineService>();
 builder.Services.AddHttpClient<LineService>();
 
 // CORS สำหรับ React Dev
