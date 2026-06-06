@@ -10,6 +10,8 @@ using MMS.Infrastructure.Persistence.Interceptors;
 using MMS.Infrastructure.Persistence.Services;
 using Hangfire;
 using Hangfire.SqlServer;
+using MMS.Api.Hubs;
+using MMS.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,6 +81,10 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<NotificationSenderService>();
 builder.Services.AddScoped<NotificationService>();
+// SignalR
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IRealtimeService, RealtimeService>();
+
 builder.Services.AddHttpClient<NotificationSenderService>();
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<ActivityTimelineService>();
@@ -105,6 +111,9 @@ app.UseAuthorization();
 app.MapControllers();
 // Hangfire Dashboard (Dev only)
 app.UseHangfireDashboard("/hangfire");
+
+// SignalR endpoint
+app.MapHub<MmsHub>("/hubs/mms");
 
 // Recurring Job — ส่ง notification ทุก 1 นาที
 RecurringJob.AddOrUpdate<NotificationSenderService>(
