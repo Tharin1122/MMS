@@ -2,9 +2,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MMS.Application\MMS.Application.csproj" />
+	<FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Hangfire.Core" Version="1.8.20" />
+    <PackageReference Include="Hangfire.SqlServer" Version="1.8.20" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.8">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
