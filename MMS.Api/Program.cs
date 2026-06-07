@@ -95,6 +95,7 @@ builder.Services.AddScoped<ActivityTimelineService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<WalkInService>();
+builder.Services.AddScoped<PaymentService>();
 
 builder.Services.AddHttpClient<LineService>();
 
