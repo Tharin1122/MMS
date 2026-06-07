@@ -92,6 +92,7 @@ builder.Services.AddScoped<IRealtimeService, RealtimeService>();
 builder.Services.AddHttpClient<NotificationSenderService>();
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<ActivityTimelineService>();
+builder.Services.AddScoped<AvailabilityService>();
 
 builder.Services.AddHttpClient<LineService>();
 
