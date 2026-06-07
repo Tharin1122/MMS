@@ -7,13 +7,14 @@ using MMS.Domain.Common;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
 using MMS.Infrastructure.Persistence;
+using MMS.Infrastructure.Persistence.Services;
 
 namespace MMS.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class TherapistController(AppDbContext db) : ControllerBase
+public class TherapistController(AppDbContext db, IRealtimeService realtime) : ControllerBase
 {
     // ─── CRUD ───────────────────────────────────────────────────────
 
@@ -132,10 +133,14 @@ public class TherapistController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] TherapistStatusRequest req)
     {
         var tenantId = User.GetTenantId();
-        var therapist = await db.Therapists
-            .FirstOrDefaultAsync(t => t.Id == id && t.TenantId == tenantId && t.DeletedAt == null);
+        var branchId = User.GetBranchId();
 
-        if (therapist == null) return NotFound(new { message = "Therapist not found" });
+        var therapist = await db.Therapists
+            .FirstOrDefaultAsync(t => t.Id == id
+                && t.TenantId == tenantId && t.DeletedAt == null);
+
+        if (therapist == null)
+            return NotFound(new { message = "Therapist not found" });
 
         var oldStatus = therapist.CurrentStatus;
         therapist.CurrentStatus = req.Status;
@@ -147,11 +152,24 @@ public class TherapistController(AppDbContext db) : ControllerBase
             FromStatus = oldStatus,
             ToStatus = req.Status,
             Reason = req.Reason,
-            ChangedBy = User.GetUserId()
+            ChangedBy = User.GetUserId(),
+            ChangedAt = DateTime.UtcNow
         });
 
         await db.SaveChangesAsync();
-        return Ok(new { message = "Status updated", status = req.Status.ToString() });
+
+        // 🔴 Broadcast realtime
+        await realtime.NotifyTherapistStatusChangedAsync(
+            branchId, id,
+            therapist.DisplayName,
+            req.Status.ToString(),
+            oldStatus.ToString());
+
+        return Ok(new
+        {
+            message = "Status updated",
+            status = req.Status.ToString()
+        });
     }
 
     // ─── Schedule ───────────────────────────────────────────────────

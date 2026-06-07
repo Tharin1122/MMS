@@ -7,13 +7,14 @@ using MMS.Domain.Common;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
 using MMS.Infrastructure.Persistence;
+using MMS.Infrastructure.Persistence.Services;
 
 namespace MMS.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class RoomController(AppDbContext db) : ControllerBase
+public class RoomController(AppDbContext db, IRealtimeService realtime) : ControllerBase
 {
     [HttpGet]
     [RequirePermission(PermissionCodes.RoomView)]
@@ -103,26 +104,50 @@ public class RoomController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] RoomStatusRequest req)
     {
         var tenantId = User.GetTenantId();
-        var room = await db.Rooms
-            .FirstOrDefaultAsync(r => r.Id == id && r.TenantId == tenantId && r.DeletedAt == null);
+        var branchId = User.GetBranchId();
 
-        if (room == null) return NotFound(new { message = "Room not found" });
+        var room = await db.Rooms
+            .FirstOrDefaultAsync(r => r.Id == id
+                && r.TenantId == tenantId && r.DeletedAt == null);
+
+        if (room == null)
+            return NotFound(new { message = "Room not found" });
 
         var oldStatus = room.CurrentStatus;
         room.CurrentStatus = req.Status;
 
-        // บันทึก history
+        // คำนวณ estimatedAvailableAt ถ้าเป็น Cleaning
+        DateTime? estimatedAvailableAt = null;
+        if (req.Status == RoomStatus.Cleaning)
+            estimatedAvailableAt = DateTime.UtcNow.AddHours(7)
+                .AddMinutes(room.CleaningBufferMins);
+
         db.RoomStatusHistories.Add(new RoomStatusHistory
         {
             TenantId = tenantId,
             RoomId = id,
             FromStatus = oldStatus,
             ToStatus = req.Status,
-            ChangedBy = User.GetUserId()
+            EstimatedAvailableAt = estimatedAvailableAt,
+            ChangedBy = User.GetUserId(),
+            ChangedAt = DateTime.UtcNow
         });
 
         await db.SaveChangesAsync();
-        return Ok(new { message = "Status updated", status = req.Status.ToString() });
+
+        // 🔴 Broadcast realtime
+        await realtime.NotifyRoomStatusChangedAsync(
+            branchId, id,
+            room.Name,
+            req.Status.ToString(),
+            estimatedAvailableAt);
+
+        return Ok(new
+        {
+            message = "Status updated",
+            status = req.Status.ToString(),
+            estimatedAvailableAt
+        });
     }
 
     [HttpDelete("{id:guid}")]

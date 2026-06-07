@@ -5,7 +5,7 @@ using MMS.Infrastructure.Persistence;
 
 namespace MMS.Infrastructure.Persistence.Services;
 
-public class WalkInService(AppDbContext db)
+public class WalkInService(AppDbContext db, IRealtimeService realtime)
 {
     // ──────────────────────────────────────────────
     // CREATE WALK-IN
@@ -86,6 +86,15 @@ public class WalkInService(AppDbContext db)
         }
 
         await db.SaveChangesAsync();
+
+        // 🔴 Broadcast คิวใหม่
+        await realtime.NotifyQueueUpdatedAsync(
+            branchId, walkIn.Id,
+            queueNo,
+            customer.DisplayName,
+            WalkInStatus.Waiting.ToString(),
+            estimatedWait);
+
         return WalkInResult.Ok(walkIn.Id, queueNo, estimatedWait);
     }
 
@@ -175,6 +184,14 @@ public class WalkInService(AppDbContext db)
         walkIn.EndTime = currentTime; // คาดว่าจะจบเมื่อไหร่
 
         await db.SaveChangesAsync();
+
+        // 🔴 Broadcast คิวเริ่มบริการ
+        await realtime.NotifyQueueUpdatedAsync(
+            walkIn.BranchId, walkIn.Id,
+            walkIn.QueueNo,
+            "", // ไม่ต้องส่งชื่อ ฝั่ง client รู้จากก่อนหน้าแล้ว
+            WalkInStatus.InService.ToString());
+
         return (true, null);
     }
 
@@ -215,6 +232,24 @@ public class WalkInService(AppDbContext db)
         }
 
         await db.SaveChangesAsync();
+
+        // 🔴 Broadcast คิวเสร็จ + therapist กลับมา Available
+        await realtime.NotifyQueueUpdatedAsync(
+            walkIn.BranchId, walkIn.Id,
+            walkIn.QueueNo,
+            "",
+            WalkInStatus.Completed.ToString());
+
+        foreach (var item in walkIn.Items.Where(i => i.Therapist != null))
+        {
+            await realtime.NotifyTherapistStatusChangedAsync(
+                walkIn.BranchId,
+                item.Therapist!.Id,
+                item.Therapist.DisplayName,
+                TherapistStatus.Available.ToString(),
+                TherapistStatus.Occupied.ToString());
+        }
+
         return (true, null);
     }
 

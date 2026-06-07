@@ -5,7 +5,10 @@ using MMS.Infrastructure.Persistence;
 
 namespace MMS.Infrastructure.Persistence.Services;
 
-public class BookingService(AppDbContext db, AvailabilityService availability)
+public class BookingService(
+    AppDbContext db,
+    AvailabilityService availability,
+    IRealtimeService realtime)
 {
     // ──────────────────────────────────────────────
     // CREATE BOOKING
@@ -140,6 +143,13 @@ public class BookingService(AppDbContext db, AvailabilityService availability)
         }
 
         await db.SaveChangesAsync();
+
+        // 🔴 Broadcast booking ใหม่
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, booking.Id,
+            bookingNo,
+            BookingStatus.Pending.ToString(),
+            customer.DisplayName);
 
         return BookingResult.Ok(booking.Id, bookingNo);
     }
