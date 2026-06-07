@@ -13,12 +13,11 @@ namespace MMS.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class BookingController(AppDbContext db, BookingService bookingService) : ControllerBase
+public class BookingController(
+    AppDbContext db,
+    BookingService bookingService,
+    IRealtimeService realtime) : ControllerBase
 {
-    // ──────────────────────────────────────────────
-    // LIST / GET
-    // ──────────────────────────────────────────────
-
     [HttpGet]
     [RequirePermission(PermissionCodes.BookingView)]
     public async Task<IActionResult> GetAll(
@@ -33,32 +32,29 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
         var branchId = User.GetBranchId();
 
         var query = db.Bookings
-            .Where(b => b.TenantId == tenantId
-                && b.BranchId == branchId
-                && b.DeletedAt == null);
+            .Where(b => b.TenantId == tenantId && b.BranchId == branchId && b.DeletedAt == null);
 
-        if (date.HasValue)
-            query = query.Where(b => b.BookingDate == date);
-        if (status.HasValue)
-            query = query.Where(b => b.Status == status);
-        if (customerId.HasValue)
-            query = query.Where(b => b.CustomerId == customerId);
+        if (date.HasValue) query = query.Where(b => b.BookingDate == date);
+        if (status.HasValue) query = query.Where(b => b.Status == status);
+        if (customerId.HasValue) query = query.Where(b => b.CustomerId == customerId);
         if (therapistId.HasValue)
-            query = query.Where(b =>
-                b.Items.Any(i => i.TherapistId == therapistId));
+            query = query.Where(b => b.Items.Any(i => i.TherapistId == therapistId));
 
         var total = await query.CountAsync();
         var items = await query
-            .OrderByDescending(b => b.BookingDate)
-            .ThenBy(b => b.StartTime)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderByDescending(b => b.BookingDate).ThenBy(b => b.StartTime)
+            .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(b => new
             {
-                b.Id, b.BookingNo, b.BookingDate,
-                b.StartTime, b.EndTime,
-                b.TotalDurationMins, b.TotalAmount,
-                b.Status, b.Source,
+                b.Id,
+                b.BookingNo,
+                b.BookingDate,
+                b.StartTime,
+                b.EndTime,
+                b.TotalDurationMins,
+                b.TotalAmount,
+                b.Status,
+                b.Source,
                 Customer = new { b.Customer.Id, b.Customer.DisplayName, b.Customer.Phone },
                 ItemCount = b.Items.Count
             })
@@ -74,49 +70,45 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
         var tenantId = User.GetTenantId();
         var booking = await db.Bookings
             .Include(b => b.Customer)
-            .Include(b => b.Items)
-                .ThenInclude(i => i.Service)
-            .Include(b => b.Items)
-                .ThenInclude(i => i.Therapist)
-            .Include(b => b.Items)
-                .ThenInclude(i => i.Room)
-            .FirstOrDefaultAsync(b => b.Id == id
-                && b.TenantId == tenantId && b.DeletedAt == null);
+            .Include(b => b.Items).ThenInclude(i => i.Service)
+            .Include(b => b.Items).ThenInclude(i => i.Therapist)
+            .Include(b => b.Items).ThenInclude(i => i.Room)
+            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && b.DeletedAt == null);
 
-        if (booking == null)
-            return NotFound(new { message = "Booking not found" });
+        if (booking == null) return NotFound(new { message = "Booking not found" });
 
         return Ok(new
         {
-            booking.Id, booking.BookingNo,
-            booking.BookingDate, booking.StartTime, booking.EndTime,
-            booking.TotalDurationMins, booking.TotalAmount,
-            booking.DepositAmount, booking.DepositStatus,
-            booking.Status, booking.Source, booking.Notes,
-            booking.CancelReason, booking.CancelledAt,
-            Customer = new
-            {
-                booking.Customer.Id,
-                booking.Customer.DisplayName,
-                booking.Customer.Phone
-            },
+            booking.Id,
+            booking.BookingNo,
+            booking.BookingDate,
+            booking.StartTime,
+            booking.EndTime,
+            booking.TotalDurationMins,
+            booking.TotalAmount,
+            booking.DepositAmount,
+            booking.DepositStatus,
+            booking.Status,
+            booking.Source,
+            booking.Notes,
+            booking.CancelReason,
+            booking.CancelledAt,
+            Customer = new { booking.Customer.Id, booking.Customer.DisplayName, booking.Customer.Phone },
             Items = booking.Items.OrderBy(i => i.SortOrder).Select(i => new
             {
-                i.Id, i.SortOrder,
-                i.StartTime, i.EndTime, i.DurationMins,
-                i.Price, i.CommissionAmount,
+                i.Id,
+                i.SortOrder,
+                i.StartTime,
+                i.EndTime,
+                i.DurationMins,
+                i.Price,
+                i.CommissionAmount,
                 Service = new { i.Service.Id, i.Service.Name },
-                Therapist = i.Therapist == null ? null
-                    : new { i.Therapist.Id, i.Therapist.DisplayName },
-                Room = i.Room == null ? null
-                    : new { i.Room.Id, i.Room.Name }
+                Therapist = i.Therapist == null ? null : new { i.Therapist.Id, i.Therapist.DisplayName },
+                Room = i.Room == null ? null : new { i.Room.Id, i.Room.Name }
             })
         });
     }
-
-    // ──────────────────────────────────────────────
-    // CREATE
-    // ──────────────────────────────────────────────
 
     [HttpPost]
     [RequirePermission(PermissionCodes.BookingCreate)]
@@ -124,7 +116,6 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
     {
         var tenantId = User.GetTenantId();
         var branchId = User.GetBranchId();
-        var userId = User.GetUserId();
 
         if (req.Items == null || req.Items.Count == 0)
             return BadRequest(new { message = "Booking must have at least 1 item" });
@@ -132,59 +123,84 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
         if (req.BookingDate < DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7)))
             return BadRequest(new { message = "Cannot book in the past" });
 
-        var result = await bookingService.CreateBookingAsync(
-            tenantId, branchId, userId, req);
+        var result = await bookingService.CreateBookingAsync(tenantId, branchId, User.GetUserId(), req);
+        if (!result.Success) return BadRequest(new { message = result.Error });
 
-        if (!result.Success)
-            return BadRequest(new { message = result.Error });
+        // 🔔 Realtime
+        var customer = await db.Customers.FindAsync(req.CustomerId);
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, result.BookingId!.Value, result.BookingNo!,
+            "Pending", customer?.DisplayName ?? "");
 
-        return Ok(new
-        {
-            message = "Booking created",
-            bookingId = result.BookingId,
-            bookingNo = result.BookingNo
-        });
+        return Ok(new { message = "Booking created", bookingId = result.BookingId, bookingNo = result.BookingNo });
     }
-
-    // ──────────────────────────────────────────────
-    // STATUS TRANSITIONS
-    // ──────────────────────────────────────────────
 
     [HttpPatch("{id:guid}/confirm")]
     [RequirePermission(PermissionCodes.BookingEdit)]
     public async Task<IActionResult> Confirm(Guid id)
     {
-        var (ok, err) = await bookingService.ConfirmAsync(id, User.GetTenantId());
-        return ok ? Ok(new { message = "Booking confirmed" })
-                  : BadRequest(new { message = err });
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+        var (ok, err) = await bookingService.ConfirmAsync(id, tenantId);
+        if (!ok) return BadRequest(new { message = err });
+
+        var booking = await db.Bookings.Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == id);
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, id, booking?.BookingNo ?? "", "Confirmed", booking?.Customer.DisplayName ?? "");
+
+        return Ok(new { message = "Booking confirmed" });
     }
 
     [HttpPatch("{id:guid}/start")]
     [RequirePermission(PermissionCodes.BookingEdit)]
     public async Task<IActionResult> Start(Guid id)
     {
-        var (ok, err) = await bookingService.StartAsync(id, User.GetTenantId());
-        return ok ? Ok(new { message = "Booking started" })
-                  : BadRequest(new { message = err });
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+        var (ok, err) = await bookingService.StartAsync(id, tenantId);
+        if (!ok) return BadRequest(new { message = err });
+
+        var booking = await db.Bookings.Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == id);
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, id, booking?.BookingNo ?? "", "InProgress", booking?.Customer.DisplayName ?? "");
+
+        return Ok(new { message = "Booking started" });
     }
 
     [HttpPatch("{id:guid}/complete")]
     [RequirePermission(PermissionCodes.BookingEdit)]
     public async Task<IActionResult> Complete(Guid id)
     {
-        var (ok, err) = await bookingService.CompleteAsync(id, User.GetTenantId());
-        return ok ? Ok(new { message = "Booking completed" })
-                  : BadRequest(new { message = err });
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+        var (ok, err) = await bookingService.CompleteAsync(id, tenantId);
+        if (!ok) return BadRequest(new { message = err });
+
+        var booking = await db.Bookings.Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == id);
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, id, booking?.BookingNo ?? "", "Completed", booking?.Customer.DisplayName ?? "");
+
+        return Ok(new { message = "Booking completed" });
     }
 
     [HttpPatch("{id:guid}/cancel")]
     [RequirePermission(PermissionCodes.BookingCancel)]
     public async Task<IActionResult> Cancel(Guid id, [FromBody] CancelRequest req)
     {
-        var (ok, err) = await bookingService.CancelAsync(
-            id, User.GetTenantId(), User.GetUserId(), req.Reason);
-        return ok ? Ok(new { message = "Booking cancelled" })
-                  : BadRequest(new { message = err });
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+        var (ok, err) = await bookingService.CancelAsync(id, tenantId, User.GetUserId(), req.Reason);
+        if (!ok) return BadRequest(new { message = err });
+
+        var booking = await db.Bookings.Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == id);
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, id, booking?.BookingNo ?? "", "Cancelled", booking?.Customer.DisplayName ?? "");
+
+        return Ok(new { message = "Booking cancelled" });
     }
 
     [HttpPatch("{id:guid}/no-show")]
@@ -192,9 +208,9 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
     public async Task<IActionResult> NoShow(Guid id)
     {
         var tenantId = User.GetTenantId();
-        var booking = await db.Bookings
-            .FirstOrDefaultAsync(b => b.Id == id
-                && b.TenantId == tenantId && b.DeletedAt == null);
+        var branchId = User.GetBranchId();
+        var booking = await db.Bookings.Include(b => b.Customer)
+            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && b.DeletedAt == null);
 
         if (booking == null) return NotFound(new { message = "Booking not found" });
         if (booking.Status != BookingStatus.Confirmed)
@@ -202,12 +218,12 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
 
         booking.Status = BookingStatus.NoShow;
         await db.SaveChangesAsync();
+
+        await realtime.NotifyBookingUpdatedAsync(
+            branchId, id, booking.BookingNo, "NoShow", booking.Customer.DisplayName);
+
         return Ok(new { message = "Marked as no-show" });
     }
-
-    // ──────────────────────────────────────────────
-    // UPDATE NOTES / DEPOSIT
-    // ──────────────────────────────────────────────
 
     [HttpPatch("{id:guid}/notes")]
     [RequirePermission(PermissionCodes.BookingEdit)]
@@ -215,11 +231,9 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
     {
         var tenantId = User.GetTenantId();
         var booking = await db.Bookings
-            .FirstOrDefaultAsync(b => b.Id == id
-                && b.TenantId == tenantId && b.DeletedAt == null);
+            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && b.DeletedAt == null);
 
         if (booking == null) return NotFound(new { message = "Booking not found" });
-
         booking.Notes = req.Notes;
         await db.SaveChangesAsync();
         return Ok(new { message = "Notes updated" });
@@ -231,11 +245,9 @@ public class BookingController(AppDbContext db, BookingService bookingService) :
     {
         var tenantId = User.GetTenantId();
         var booking = await db.Bookings
-            .FirstOrDefaultAsync(b => b.Id == id
-                && b.TenantId == tenantId && b.DeletedAt == null);
+            .FirstOrDefaultAsync(b => b.Id == id && b.TenantId == tenantId && b.DeletedAt == null);
 
         if (booking == null) return NotFound(new { message = "Booking not found" });
-
         booking.DepositAmount = req.Amount;
         booking.DepositStatus = req.Status;
         await db.SaveChangesAsync();
