@@ -94,6 +94,7 @@ builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<ActivityTimelineService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
+builder.Services.AddScoped<WalkInService>();
 
 builder.Services.AddHttpClient<LineService>();
 
