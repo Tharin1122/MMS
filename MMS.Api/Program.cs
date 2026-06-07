@@ -93,6 +93,7 @@ builder.Services.AddHttpClient<NotificationSenderService>();
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<ActivityTimelineService>();
 builder.Services.AddScoped<AvailabilityService>();
+builder.Services.AddScoped<BookingService>();
 
 builder.Services.AddHttpClient<LineService>();
 
