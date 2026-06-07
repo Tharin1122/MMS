@@ -39,4 +39,8 @@ public class RealtimeService(IHubContext<MmsHub> hub) : IRealtimeService
 
     public async Task SendToTenantAsync(Guid tenantId, string eventName, object data)
         => await hub.Clients.Group($"tenant_{tenantId}").SendAsync(eventName, data);
+
+    public async Task NotifyDashboardSnapshotAsync(Guid branchId, object snapshot)
+    => await hub.Clients.Group($"branch_{branchId}")
+        .SendAsync("DashboardSnapshot", snapshot);
 }

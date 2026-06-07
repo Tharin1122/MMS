@@ -1,0 +1,223 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using MMS.Api.Attributes;
+using MMS.Api.Extensions;
+using MMS.Domain.Common;
+using MMS.Domain.Enums;
+using MMS.Domain.Helper;
+using MMS.Infrastructure.Persistence;
+using MMS.Infrastructure.Persistence.Services;
+
+namespace MMS.Api.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class DashboardController(
+    AppDbContext db,
+    IRealtimeService realtime) : ControllerBase
+{
+    /// <summary>
+    /// GET /api/dashboard
+    /// ภาพรวมทั้งหมดของวันนี้สำหรับ Staff หน้าจอหลัก
+    /// </summary>
+    [HttpGet]
+    [RequirePermission(PermissionCodes.DashboardView)]
+    public async Task<IActionResult> GetSnapshot()
+    {
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+        var today = ThaiTime.Today;
+        var todayStartUtc = today.ToDateTime(TimeOnly.MinValue).AddHours(-7); // 00:00 Thai = 17:00 UTC เมื่อวาน
+        var todayEndUtc = today.ToDateTime(TimeOnly.MaxValue).AddHours(-7); // 23:59 Thai = 16:59 UTC วันนี้
+
+        // ── Therapists ──────────────────────────────
+        var therapists = await db.Therapists
+            .Where(t => t.TenantId == tenantId
+                && t.BranchId == branchId
+                && t.IsActive
+                && t.DeletedAt == null)
+            .Select(t => new
+            {
+                t.Id,
+                t.DisplayName,
+                t.Code,
+                t.AvatarUrl,
+                t.CurrentStatus
+            })
+            .ToListAsync();
+
+        var therapistSummary = new
+        {
+            total = therapists.Count,
+            available = therapists.Count(t => t.CurrentStatus == TherapistStatus.Available),
+            occupied = therapists.Count(t => t.CurrentStatus == TherapistStatus.Occupied),
+            onBreak = therapists.Count(t => t.CurrentStatus == TherapistStatus.Break),
+            onLeave = therapists.Count(t => t.CurrentStatus == TherapistStatus.Leave),
+            offline = therapists.Count(t => t.CurrentStatus == TherapistStatus.Offline),
+            list = therapists
+        };
+
+        // ── Rooms ───────────────────────────────────
+        var rooms = await db.Rooms
+            .Where(r => r.TenantId == tenantId
+                && r.BranchId == branchId
+                && r.IsActive
+                && r.DeletedAt == null)
+            .Select(r => new
+            {
+                r.Id,
+                r.Name,
+                r.RoomType,
+                r.CurrentStatus,
+                r.CleaningBufferMins
+            })
+            .ToListAsync();
+
+        var roomSummary = new
+        {
+            total = rooms.Count,
+            available = rooms.Count(r => r.CurrentStatus == RoomStatus.Available),
+            occupied = rooms.Count(r => r.CurrentStatus == RoomStatus.Occupied),
+            cleaning = rooms.Count(r => r.CurrentStatus == RoomStatus.Cleaning),
+            maintenance = rooms.Count(r => r.CurrentStatus == RoomStatus.Maintenance),
+            list = rooms
+        };
+
+        // ── Queue (Walk-in วันนี้) ──────────────────
+        var walkIns = await db.WalkIns
+            .Where(w => w.TenantId == tenantId
+                && w.BranchId == branchId
+                && w.ArrivalTime >= todayStartUtc
+                && w.ArrivalTime <= todayEndUtc
+                && w.DeletedAt == null)
+            .Select(w => new
+            {
+                w.Id,
+                w.QueueNo,
+                w.Status,
+                w.ArrivalTime,
+                w.StartTime,
+                w.EndTime,
+                w.EstimatedWaitMins,
+                Customer = new
+                {
+                    w.Customer.DisplayName,
+                    w.Customer.Phone
+                },
+                ServiceCount = w.Items.Count
+            })
+            .OrderBy(w => w.ArrivalTime)
+            .ToListAsync();
+
+        var queueSummary = new
+        {
+            totalToday = walkIns.Count,
+            waiting = walkIns.Count(w => w.Status == WalkInStatus.Waiting),
+            inService = walkIns.Count(w => w.Status == WalkInStatus.InService),
+            completed = walkIns.Count(w => w.Status == WalkInStatus.Completed),
+            cancelled = walkIns.Count(w => w.Status == WalkInStatus.Cancelled),
+            waitingList = walkIns.Where(w => w.Status == WalkInStatus.Waiting).ToList(),
+            inServiceList = walkIns.Where(w => w.Status == WalkInStatus.InService).ToList()
+        };
+
+        // ── Bookings วันนี้ ──────────────────────────
+        var bookings = await db.Bookings
+            .Where(b => b.TenantId == tenantId
+                && b.BranchId == branchId
+                && b.BookingDate == today
+                && b.DeletedAt == null)
+            .Select(b => new
+            {
+                b.Id,
+                b.BookingNo,
+                b.StartTime,
+                b.EndTime,
+                b.TotalAmount,
+                b.Status,
+                Customer = new
+                {
+                    b.Customer.DisplayName,
+                    b.Customer.Phone
+                },
+                ItemCount = b.Items.Count
+            })
+            .OrderBy(b => b.StartTime)
+            .ToListAsync();
+
+        var bookingSummary = new
+        {
+            total = bookings.Count,
+            pending = bookings.Count(b => b.Status == BookingStatus.Pending),
+            confirmed = bookings.Count(b => b.Status == BookingStatus.Confirmed),
+            inProgress = bookings.Count(b => b.Status == BookingStatus.InProgress),
+            completed = bookings.Count(b => b.Status == BookingStatus.Completed),
+            cancelled = bookings.Count(b => b.Status == BookingStatus.Cancelled),
+            noShow = bookings.Count(b => b.Status == BookingStatus.NoShow),
+            upcomingList = bookings
+                .Where(b => b.Status is BookingStatus.Pending or BookingStatus.Confirmed)
+                .ToList()
+        };
+
+        // ── Revenue วันนี้ ───────────────────────────
+        var payments = await db.Payments
+            .Where(p => p.TenantId == tenantId
+                && p.BranchId == branchId
+                && p.Status == PaymentStatus.Paid
+                && p.PaidAt >= todayStartUtc
+                && p.PaidAt <= todayEndUtc
+                && p.DeletedAt == null)
+            .ToListAsync();
+
+        var revenueSummary = new
+        {
+            totalReceipts = payments.Count,
+            totalRevenue = payments.Sum(p => p.TotalAmount),
+            totalDiscount = payments.Sum(p => p.DiscountAmount),
+            byMethod = payments
+                .GroupBy(p => p.PaymentMethod)
+                .Select(g => new
+                {
+                    method = g.Key.ToString(),
+                    count = g.Count(),
+                    amount = g.Sum(p => p.TotalAmount)
+                })
+                .ToList()
+        };
+
+        // ── Snapshot รวม ────────────────────────────
+        var snapshot = new
+        {
+            date = today,
+            generatedAt = ThaiTime.Now,
+            therapists = therapistSummary,
+            rooms = roomSummary,
+            queue = queueSummary,
+            bookings = bookingSummary,
+            revenue = revenueSummary
+        };
+
+        return Ok(snapshot);
+    }
+
+    /// <summary>
+    /// POST /api/dashboard/broadcast
+    /// Broadcast snapshot ไปยัง client ทุกคนในสาขา (ใช้ตอน manual refresh)
+    /// </summary>
+    [HttpPost("broadcast")]
+    [RequirePermission(PermissionCodes.DashboardView)]
+    public async Task<IActionResult> BroadcastSnapshot()
+    {
+        var branchId = User.GetBranchId();
+
+        // ดึง snapshot แล้ว broadcast
+        var snapshotResult = await GetSnapshot() as OkObjectResult;
+        if (snapshotResult?.Value == null)
+            return StatusCode(500, new { message = "Failed to get snapshot" });
+
+        await realtime.NotifyDashboardSnapshotAsync(branchId, snapshotResult.Value);
+
+        return Ok(new { message = "Dashboard snapshot broadcasted" });
+    }
+}
