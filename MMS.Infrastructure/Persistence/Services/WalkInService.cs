@@ -103,50 +103,76 @@ public class WalkInService(AppDbContext db, IRealtimeService realtime)
     // ──────────────────────────────────────────────
 
     public async Task<(bool Success, string? Error)> AssignTherapistAsync(
-        Guid walkInId, Guid tenantId, Guid therapistId, Guid? roomId = null)
+     Guid walkInId, Guid tenantId, Guid? manualTherapistId = null, Guid? roomId = null)
     {
         var walkIn = await db.WalkIns
             .Include(w => w.Items)
+                .ThenInclude(i => i.Service)
             .FirstOrDefaultAsync(w => w.Id == walkInId
                 && w.TenantId == tenantId && w.DeletedAt == null);
 
         if (walkIn == null) return (false, "WalkIn not found");
         if (walkIn.Status != WalkInStatus.Waiting)
-            return (false, $"Cannot assign therapist to walk-in with status {walkIn.Status}");
+            return (false, $"Cannot assign to walk-in with status {walkIn.Status}");
 
-        // ตรวจ therapist ว่าอยู่ในระบบและ active
-        var therapist = await db.Therapists
-            .FirstOrDefaultAsync(t => t.Id == therapistId
-                && t.TenantId == tenantId && t.IsActive && t.DeletedAt == null);
-        if (therapist == null) return (false, "Therapist not found");
+        // ดึง therapist ทั้งหมดที่ active + available พร้อม TherapistServices
+        var availableTherapists = await db.Therapists
+            .Include(t => t.TherapistServices)
+            .Where(t => t.TenantId == tenantId
+                && t.BranchId == walkIn.BranchId
+                && t.IsActive
+                && t.CurrentStatus == TherapistStatus.Available
+                && t.DeletedAt == null)
+            .ToListAsync();
 
-        // Assign ให้ทุก item ที่ยังไม่มี therapist
-        var now = DateTime.UtcNow.AddHours(7);
-        var currentTime = now;
+        // track therapist ที่ถูก assign ใน session นี้ (ป้องกัน assign ซ้ำในคิวเดียวกัน)
+        var assignedInThisSession = new HashSet<Guid>();
 
         foreach (var item in walkIn.Items.OrderBy(i => i.SortOrder))
         {
-            if (item.TherapistId == null)
-            {
-                item.TherapistId = therapistId;
+            // ถ้า item นี้มีหมอนวดแล้วข้ามไป
+            if (item.TherapistId != null) continue;
 
-                // คำนวณ commission
-                var service = await db.Services.FindAsync(item.ServiceId);
-                if (service != null)
-                {
-                    if (service.CommissionFixed.HasValue)
-                        item.CommissionAmount = service.CommissionFixed;
-                    else if (service.CommissionRate.HasValue)
-                        item.CommissionAmount = service.Price * service.CommissionRate.Value / 100;
-                }
+            Therapist? therapist;
+
+            if (manualTherapistId.HasValue && walkIn.Items.Count == 1)
+            {
+                // Manual assign — มีแค่ 1 บริการ
+                therapist = availableTherapists
+                    .FirstOrDefault(t => t.Id == manualTherapistId.Value
+                        && t.TherapistServices.Any(ts => ts.ServiceId == item.ServiceId && ts.IsActive));
+
+                if (therapist == null)
+                    return (false, "หมอนวดที่เลือกไม่ว่าง หรือไม่สามารถให้บริการนี้ได้");
             }
+            else
+            {
+                // Auto assign — หาหมอนวดที่ทำบริการนี้ได้ และยังไม่ถูก assign ในคิวนี้
+                therapist = availableTherapists
+                    .FirstOrDefault(t =>
+                        !assignedInThisSession.Contains(t.Id) &&
+                        t.TherapistServices.Any(ts => ts.ServiceId == item.ServiceId && ts.IsActive));
+
+                if (therapist == null)
+                    return (false, $"ไม่มีหมอนวดที่ว่างสำหรับบริการ '{item.Service.Name}' ในขณะนี้");
+            }
+
+            // Assign
+            item.TherapistId = therapist.Id;
+            assignedInThisSession.Add(therapist.Id);
+
+            // คำนวณ commission
+            if (item.Service.CommissionFixed.HasValue)
+                item.CommissionAmount = item.Service.CommissionFixed;
+            else if (item.Service.CommissionRate.HasValue)
+                item.CommissionAmount = item.Price * item.Service.CommissionRate.Value / 100;
+
+            // เปลี่ยน status therapist เป็น Occupied
+            therapist.CurrentStatus = TherapistStatus.Occupied;
 
             if (roomId.HasValue && item.RoomId == null)
                 item.RoomId = roomId;
         }
-
-        // เปลี่ยน status therapist
-        therapist.CurrentStatus = TherapistStatus.Occupied;
 
         await db.SaveChangesAsync();
         return (true, null);

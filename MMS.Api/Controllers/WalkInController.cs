@@ -143,10 +143,13 @@ public class WalkInController(
         if (!ok) return BadRequest(new { message = err });
 
         // 🔔 Realtime — therapist status เปลี่ยนเป็น Occupied
-        var therapist = await db.Therapists.FindAsync(req.TherapistId);
-        if (therapist != null)
-            await realtime.NotifyTherapistStatusChangedAsync(
-                branchId, req.TherapistId, therapist.DisplayName, "Occupied", "Available");
+        if (req.TherapistId.HasValue)
+        {
+            var therapist = await db.Therapists.FindAsync(req.TherapistId.Value);
+            if (therapist != null)
+                await realtime.NotifyTherapistStatusChangedAsync(
+                    branchId, req.TherapistId.Value, therapist.DisplayName, "Occupied", "Available");
+        }
 
         return Ok(new { message = "Therapist assigned" });
     }
@@ -213,6 +216,46 @@ public class WalkInController(
             branchId, id, walkIn?.QueueNo ?? "", walkIn?.Customer.DisplayName ?? "", "Cancelled");
 
         return Ok(new { message = "Walk-in cancelled" });
+    }
+
+    /// <summary>
+    /// GET /api/walk-in/available-therapists?serviceIds=xxx&serviceIds=yyy
+    /// คืน therapist ที่ว่างแยกตามแต่ละ service
+    /// </summary>
+    [HttpGet("available-therapists")]
+    [RequirePermission(PermissionCodes.WalkInCreate)]
+    public async Task<IActionResult> GetAvailableTherapists([FromQuery] List<Guid> serviceIds)
+    {
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+
+        var therapists = await db.Therapists
+            .Include(t => t.TherapistServices)
+            .Where(t => t.TenantId == tenantId
+                && t.BranchId == branchId
+                && t.IsActive
+                && t.CurrentStatus == TherapistStatus.Available
+                && t.DeletedAt == null)
+            .ToListAsync();
+
+        // คืนเป็น map: serviceId → list of therapist ที่ทำได้
+        var result = serviceIds.ToDictionary(
+            sid => sid,
+            sid => therapists
+                .Where(t => t.TherapistServices
+                    .Any(ts => ts.ServiceId == sid && ts.IsActive))
+                .Select(t => new
+                {
+                    t.Id,
+                    t.DisplayName,
+                    t.Code,
+                    t.AvatarUrl,
+                    t.SkillLevel
+                })
+                .ToList()
+        );
+
+        return Ok(result);
     }
 }
 
@@ -305,6 +348,6 @@ public class QueueController(AppDbContext db) : ControllerBase
     }
 }
 
-public record AssignRequest(Guid TherapistId, Guid? RoomId);
+public record AssignRequest(Guid? TherapistId, Guid? RoomId);
 public record CancelWalkInRequest(string? Reason);
 public record QueueOrderItem(Guid WalkInId, int EstimatedWaitMins);
