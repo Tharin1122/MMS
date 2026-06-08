@@ -35,7 +35,12 @@ public class UserController(AppDbContext db) : ControllerBase
                 u.AvatarUrl,
                 u.IsActive,
                 u.LastLoginAt,
-                roles = u.UserRoles.Select(ur => ur.Role.Name)
+                roles = u.UserRoles.Select(ur => ur.Role.Name),
+                permissionCount = u.UserRoles
+                    .SelectMany(ur => ur.Role.RolePermissions)
+                    .Select(rp => rp.PermissionId)
+                    .Distinct()
+                    .Count()
             })
             .ToListAsync();
 
@@ -89,7 +94,12 @@ public class UserController(AppDbContext db) : ControllerBase
         Guid id, [FromBody] UpdatePermissionsRequest req)
     {
         var tenantId = User.GetTenantId();
+        var callerId = User.GetUserId();
         var callerPermCodes = User.GetPermissions().ToHashSet();
+
+        // ห้ามแก้สิทธิ์ตัวเอง
+        if (callerId == id)
+            return StatusCode(403, new { message = "ไม่สามารถแก้สิทธิ์ของตัวเองได้" });
 
         // ห้ามให้สิทธิ์ที่ตัวเองไม่มี
         var forbidden = req.PermissionCodes
@@ -99,18 +109,32 @@ public class UserController(AppDbContext db) : ControllerBase
         if (forbidden.Any())
             return StatusCode(403, new { message = "ไม่สามารถให้สิทธิ์ที่ตัวเองไม่มี", forbidden });
 
+        // ห้ามแก้สิทธิ์คนที่เป็น Owner (ถ้า caller ไม่ใช่ Owner)
+        var callerRoles = await db.UserRoles
+            .Where(ur => ur.UserId == callerId)
+            .Select(ur => ur.Role.Name)
+            .ToListAsync();
+
+        var targetRoles = await db.UserRoles
+            .Where(ur => ur.UserId == id)
+            .Select(ur => ur.Role.Name)
+            .ToListAsync();
+
+        var callerIsOwner = callerRoles.Any(r => r == "Owner");
+        var targetIsOwner = targetRoles.Any(r => r == "Owner");
+
+        if (!callerIsOwner && targetIsOwner)
+            return StatusCode(403, new { message = "ไม่สามารถแก้ไขสิทธิ์ของ Owner ได้" });
+
         var user = await db.Users
-            .Include(u => u.UserRoles)
             .FirstOrDefaultAsync(u => u.Id == id
                 && u.TenantId == tenantId
                 && u.DeletedAt == null);
 
         if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
 
-        // หา custom role ของ user นี้ หรือสร้างใหม่
         var customRoleName = $"custom_{id}";
         var customRole = await db.Roles
-            .Include(r => r.RolePermissions)
             .FirstOrDefaultAsync(r => r.TenantId == tenantId
                 && r.Name == customRoleName);
 
@@ -125,29 +149,43 @@ public class UserController(AppDbContext db) : ControllerBase
             };
             db.Roles.Add(customRole);
             await db.SaveChangesAsync();
+        }
 
-            user.UserRoles.Add(new UserRole
+        var hasRole = await db.UserRoles
+            .AnyAsync(ur => ur.UserId == id && ur.RoleId == customRole.Id);
+
+        if (!hasRole)
+        {
+            db.UserRoles.Add(new UserRole
             {
+                UserId = id,
                 RoleId = customRole.Id,
                 BranchId = user.BranchId,
                 AssignedAt = DateTime.UtcNow,
             });
+            await db.SaveChangesAsync();
         }
 
-        // อัพเดท permissions
         var perms = await db.Permissions
             .Where(p => req.PermissionCodes.Contains(p.Code))
             .ToListAsync();
 
-        // ลบเก่า เพิ่มใหม่
-        db.RemoveRange(customRole.RolePermissions);
-        customRole.RolePermissions = perms.Select(p => new RolePermission
+        var oldPerms = await db.RolePermissions
+            .Where(rp => rp.RoleId == customRole.Id)
+            .ToListAsync();
+
+        db.RemoveRange(oldPerms);
+        await db.SaveChangesAsync();
+
+        var newPerms = perms.Select(p => new RolePermission
         {
             RoleId = customRole.Id,
             PermissionId = p.Id
         }).ToList();
 
+        await db.AddRangeAsync(newPerms);
         await db.SaveChangesAsync();
+
         return Ok(new { message = "อัพเดทสิทธิ์สำเร็จ" });
     }
 }

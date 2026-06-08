@@ -8,12 +8,16 @@ import WalkInPage from './pages/WalkInPage'
 import QueueMonitorPage from './pages/QueueMonitorPage'
 import ReportPage from './pages/ReportPage'
 import RoomManagementPage from './pages/RoomManagementPage'
+import UserListPage from './pages/UserListPage'
+import UserPermissionsPage from './pages/UserPermissionsPage'
 
-type Page = 'dashboard' | 'walkin' | 'queue' | 'room' | 'report'
+type Page = 'dashboard' | 'walkin' | 'queue' | 'room' | 'report' | 'users'
 
 function AppContent() {
   const { accessToken } = useAuthStore()
   const [page, setPage] = useState<Page>('dashboard')
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null) 
+  const [readOnlyUser, setReadOnlyUser] = useState(false)
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
 
   useEffect(() => {
@@ -29,6 +33,7 @@ function AppContent() {
     { key: 'queue',     icon: '🎫', label: 'คิว' },
     { key: 'room',      icon: '🚪', label: 'ห้อง' },
     { key: 'report',    icon: '📈', label: 'รายงาน' },
+    { key: 'users', icon: '👥', label: 'ผู้ใช้' },
   ]
 
   return (
@@ -53,6 +58,21 @@ function AppContent() {
         {page === 'queue'     && <QueueMonitorPage />}
         {page === 'room'      && <RoomManagementPage />}
         {page === 'report'    && <ReportPage />}
+        {page === 'users' && !selectedUserId && (
+          <UserListPage
+            onSelectUser={(id, readonly) => {
+              setSelectedUserId(id)
+              setReadOnlyUser(readonly)
+            }}
+          />
+        )}
+        {page === 'users' && selectedUserId && (
+          <UserPermissionsPage
+            userId={selectedUserId}
+            onBack={() => setSelectedUserId(null)}
+            readOnly={readOnlyUser}
+          />
+        )}
       </div>
     </div>
   )
