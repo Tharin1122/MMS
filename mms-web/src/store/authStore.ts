@@ -6,6 +6,7 @@ interface AuthStore extends AuthState {
   login: (accessToken: string, refreshToken: string, user: User, permissions: string[]) => void
   logout: () => void
   hasPermission: (code: string) => boolean
+  refreshAccessToken: () => Promise<boolean>
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -28,6 +29,31 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       hasPermission: (code) => get().permissions.includes(code),
+
+      // เรียก /api/auth/refresh แล้วอัปเดต token ใหม่
+      refreshAccessToken: async () => {
+        const { refreshToken } = get()
+        if (!refreshToken) return false
+        try {
+          const res = await fetch('http://localhost:5065/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          })
+          if (!res.ok) {
+            get().logout()
+            return false
+          }
+          const data = await res.json()
+          localStorage.setItem('accessToken', data.accessToken)
+          localStorage.setItem('refreshToken', data.refreshToken)
+          set({ accessToken: data.accessToken, refreshToken: data.refreshToken })
+          return true
+        } catch {
+          get().logout()
+          return false
+        }
+      }
     }),
     { name: 'mms-auth' }
   )

@@ -43,4 +43,15 @@ public class RealtimeService(IHubContext<MmsHub> hub) : IRealtimeService
     public async Task NotifyDashboardSnapshotAsync(Guid branchId, object snapshot)
     => await hub.Clients.Group($"branch_{branchId}")
         .SendAsync("DashboardSnapshot", snapshot);
+
+    public async Task NotifyCleaningCheckAsync(
+    Guid branchId, Guid roomId, string roomName, int cleaningBufferMins)
+    => await hub.Clients.Group($"branch_{branchId}")
+        .SendAsync("CleaningCheck", new
+        {
+            roomId,
+            roomName,
+            cleaningBufferMins,
+            askedAt = DateTime.UtcNow
+        });
 }

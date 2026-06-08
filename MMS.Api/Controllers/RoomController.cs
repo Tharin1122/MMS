@@ -14,7 +14,9 @@ namespace MMS.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class RoomController(AppDbContext db, IRealtimeService realtime) : ControllerBase
+public class RoomController(AppDbContext db,
+    IRealtimeService realtime,
+    RoomCleaningService cleaningService) : ControllerBase
 {
     [HttpGet]
     [RequirePermission(PermissionCodes.RoomView)]
@@ -163,6 +165,38 @@ public class RoomController(AppDbContext db, IRealtimeService realtime) : Contro
         room.DeletedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
         return Ok(new { message = "Deleted" });
+    }
+
+    /// <summary>
+    /// POST /api/room/{id}/cleaning-done
+    /// Frontend กดยืนยันว่าทำความสะอาดเสร็จแล้ว
+    /// </summary>
+    [HttpPost("{id:guid}/cleaning-done")]
+    // แก้เป็น — ทุกคนที่ login แล้วกดได้
+    //[RequirePermission(PermissionCodes.RoomStatusChange)]
+    public async Task<IActionResult> CleaningDone(Guid id)
+    {
+        var tenantId = User.GetTenantId();
+        var (ok, err) = await cleaningService.ConfirmCleaningDoneAsync(
+            id, tenantId, User.GetUserId());
+
+        if (!ok) return BadRequest(new { message = err });
+        return Ok(new { message = "Room is now Available" });
+    }
+
+    /// <summary>
+    /// POST /api/room/{id}/cleaning-extend
+    /// Frontend กดว่ายังไม่เสร็จ → นับเวลาใหม่
+    /// </summary>
+    [HttpPost("{id:guid}/cleaning-extend")]
+    // แก้เป็น — ทุกคนที่ login แล้วกดได้
+    //[RequirePermission(PermissionCodes.RoomStatusChange)]
+    public async Task<IActionResult> CleaningExtend(Guid id)
+    {
+        var tenantId = User.GetTenantId();
+        var (ok, err) = await cleaningService.ExtendCleaningAsync(id, tenantId);
+        if (!ok) return BadRequest(new { message = err });
+        return Ok(new { message = "Cleaning timer reset" });
     }
 }
 

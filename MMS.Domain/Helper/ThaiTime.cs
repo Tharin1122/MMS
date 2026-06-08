@@ -9,4 +9,6 @@ public static class ThaiTime
 
     public static DateOnly Today =>
         DateOnly.FromDateTime(Now);
+
+    public static DateTime FromUtc(DateTime utc) => utc.AddHours(7);
 }

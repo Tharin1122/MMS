@@ -1,37 +1,66 @@
 import axios from 'axios'
+import { useAuthStore } from '../store/authStore'
 
 export const api = axios.create({
-  baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' }
+  baseURL: 'http://localhost:5065/api',
 })
 
-// inject token อัตโนมัติ
+// ── Request interceptor — ใส่ token ทุก request ──
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken')
+  const token = useAuthStore.getState().accessToken
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
 
-// auto refresh เมื่อ 401
+// ── Response interceptor — refresh token อัตโนมัติเมื่อได้ 401 ──
+let isRefreshing = false
+let pendingQueue: { resolve: (token: string) => void; reject: () => void }[] = []
+
 api.interceptors.response.use(
-  (res) => res,
+  res => res,
   async (error) => {
-    if (error.response?.status === 401) {
-      const refreshToken = localStorage.getItem('refreshToken')
-      if (refreshToken) {
-        try {
-          const res = await axios.post('/api/auth/refresh', { refreshToken })
-          const { accessToken, refreshToken: newRefresh } = res.data
-          localStorage.setItem('accessToken', accessToken)
-          localStorage.setItem('refreshToken', newRefresh)
-          error.config.headers.Authorization = `Bearer ${accessToken}`
-          return axios(error.config)
-        } catch {
-          localStorage.clear()
-          window.location.href = '/login'
-        }
+    const original = error.config
+
+    // ถ้า 401 และยังไม่ได้ retry
+    if (error.response?.status === 401 && !original._retry) {
+      original._retry = true
+
+      if (isRefreshing) {
+        // รอ token ใหม่จาก queue
+        return new Promise((resolve, reject) => {
+          pendingQueue.push({
+            resolve: (token) => {
+              original.headers.Authorization = `Bearer ${token}`
+              resolve(api(original))
+            },
+            reject: () => reject(error)
+          })
+        })
+      }
+
+      isRefreshing = true
+
+      const ok = await useAuthStore.getState().refreshAccessToken()
+
+      isRefreshing = false
+
+      if (ok) {
+        const newToken = useAuthStore.getState().accessToken!
+        // ส่ง request ที่ค้างไว้ทั้งหมด
+        pendingQueue.forEach(p => p.resolve(newToken))
+        pendingQueue = []
+        // retry original request
+        original.headers.Authorization = `Bearer ${newToken}`
+        return api(original)
+      } else {
+        // refresh ไม่สำเร็จ → logout
+        pendingQueue.forEach(p => p.reject())
+        pendingQueue = []
+        useAuthStore.getState().logout()
+        return Promise.reject(error)
       }
     }
+
     return Promise.reject(error)
   }
 )

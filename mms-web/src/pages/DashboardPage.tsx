@@ -34,7 +34,7 @@ const roomStatusColor: Record<number, string> = {
 export default function DashboardPage() {
   const { user, logout } = useAuthStore()
   const { snapshot, isLoading, lastUpdated, setSnapshot, setLoading } = useDashboardStore()
-  useSignalR()
+  
 
   const [isDark, setIsDark] = useState(() =>
     document.documentElement.classList.contains('dark')
@@ -56,6 +56,12 @@ export default function DashboardPage() {
       setLoading(false)
     }
   }
+
+  useSignalR({
+    onRoomStatusChanged: () => fetchSnapshot(),
+    onQueueUpdated: () => fetchSnapshot(),
+    onDashboardSnapshot: (data) => setSnapshot(data),
+  })
 
   useEffect(() => {
     fetchSnapshot()

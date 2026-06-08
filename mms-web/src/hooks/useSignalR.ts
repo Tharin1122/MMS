@@ -1,57 +1,43 @@
 import { useEffect, useRef } from 'react'
-import * as signalR from '@microsoft/signalr'
-import { useAuthStore } from '../store/authStore'
+import { useSignalRContext } from '../providers/SignalRProvider'
 
 interface UseSignalROptions {
   onQueueUpdated?: (data: any) => void
   onTherapistStatusChanged?: (data: any) => void
   onBookingUpdated?: (data: any) => void
   onDashboardSnapshot?: (data: any) => void
+  onRoomStatusChanged?: (data: any) => void
 }
 
 export function useSignalR(options: UseSignalROptions = {}) {
-  const { accessToken } = useAuthStore()
-  const connectionRef = useRef<signalR.HubConnection | null>(null)
-  const optionsRef = useRef(options)
-  optionsRef.current = options // ไม่ให้ stale closure
+  const optionsRef = useRef(options)  // ย้ายขึ้นมาก่อน useContext
+  optionsRef.current = options
+
+  const { connection } = useSignalRContext()
 
   useEffect(() => {
-    if (!accessToken) return
+    if (!connection) return
 
-    const connection = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5065/hubs/mms', {
-        accessTokenFactory: () => accessToken,
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Warning)
-      .build()
+    const onQueueUpdated      = (d: any) => optionsRef.current.onQueueUpdated?.(d)
+    const onTherapistChanged  = (d: any) => optionsRef.current.onTherapistStatusChanged?.(d)
+    const onBookingUpdated    = (d: any) => optionsRef.current.onBookingUpdated?.(d)
+    const onDashboardSnapshot = (d: any) => optionsRef.current.onDashboardSnapshot?.(d)
+    const onRoomStatusChanged = (d: any) => optionsRef.current.onRoomStatusChanged?.(d)
 
-    connectionRef.current = connection
-
-    connection.on('QueueUpdated', (data) => {
-      optionsRef.current.onQueueUpdated?.(data)
-    })
-
-    connection.on('TherapistStatusChanged', (data) => {
-      optionsRef.current.onTherapistStatusChanged?.(data)
-    })
-
-    connection.on('BookingUpdated', (data) => {
-      optionsRef.current.onBookingUpdated?.(data)
-    })
-
-    connection.on('DashboardSnapshot', (data) => {
-      optionsRef.current.onDashboardSnapshot?.(data)
-    })
-
-    connection.start().catch(err =>
-      console.warn('SignalR connection failed:', err)
-    )
+    connection.on('QueueUpdated',           onQueueUpdated)
+    connection.on('TherapistStatusChanged', onTherapistChanged)
+    connection.on('BookingUpdated',         onBookingUpdated)
+    connection.on('DashboardSnapshot',      onDashboardSnapshot)
+    connection.on('RoomStatusChanged',      onRoomStatusChanged)
 
     return () => {
-      connection.stop()
+      connection.off('QueueUpdated',           onQueueUpdated)
+      connection.off('TherapistStatusChanged', onTherapistChanged)
+      connection.off('BookingUpdated',         onBookingUpdated)
+      connection.off('DashboardSnapshot',      onDashboardSnapshot)
+      connection.off('RoomStatusChanged',      onRoomStatusChanged)
     }
-  }, [accessToken])
+  }, [connection])
 
-  return connectionRef
+  return connection
 }

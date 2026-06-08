@@ -9,4 +9,5 @@ public interface IRealtimeService
     Task NotifyDashboardSnapshotAsync(Guid branchId, object snapshot);
     Task SendToBranchAsync(Guid branchId, string eventName, object data);
     Task SendToTenantAsync(Guid tenantId, string eventName, object data);
+    Task NotifyCleaningCheckAsync(Guid branchId, Guid roomId, string roomName, int cleaningBufferMins);
 }

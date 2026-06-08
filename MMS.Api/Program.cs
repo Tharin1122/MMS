@@ -68,6 +68,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -95,6 +112,9 @@ builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
 builder.Services.AddScoped<WalkInService>();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<RoomCleaningService>();
+
+builder.Services.AddHostedService<CleaningCheckBackgroundService>();
 
 builder.Services.AddHttpClient<LineService>();
 
@@ -128,6 +148,9 @@ RecurringJob.AddOrUpdate<NotificationSenderService>(
     svc => svc.ProcessPendingAsync(),
     Cron.Minutely);
 
-
+//RecurringJob.AddOrUpdate<RoomCleaningService>(
+//    "room-cleaning-check",
+//    svc => svc.ProcessCleaningRoomsAsync(),
+//    Cron.Minutely);
 
 app.Run();
