@@ -19,6 +19,7 @@ public class AppDbContext(
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<OtpToken> OtpTokens => Set<OtpToken>();
+    public DbSet<AccountLinkToken> AccountLinkTokens => Set<AccountLinkToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityTimeline> ActivityTimelines => Set<ActivityTimeline>();
     public DbSet<NotificationQueue> NotificationQueues => Set<NotificationQueue>();

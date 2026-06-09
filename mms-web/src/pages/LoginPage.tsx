@@ -12,24 +12,44 @@ export default function LoginPage() {
   const [showDev, setShowDev] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [linkTargetName, setLinkTargetName] = useState<string | null>(null)
 
   const applyLogin = (data: any) => {
     const { accessToken, refreshToken, user, permissions } = data
     login(accessToken, refreshToken ?? '', user, permissions)
   }
 
+  // อ่าน ?link=TOKEN จาก URL (พนักงานสแกน QR ผูกบัญชี)
+  const linkToken = new URLSearchParams(window.location.search).get('link')
+
   const completeLineLogin = async (lineAccessToken: string) => {
     setLoading(true)
     setError('')
     try {
-      const res = await api.post('/auth/line-login', { accessToken: lineAccessToken })
+      // ถ้ามี link token → ผูกบัญชี, ไม่งั้น → login ปกติ
+      const endpoint = linkToken ? '/auth/link-line' : '/auth/line-login'
+      const body = linkToken
+        ? { linkToken, accessToken: lineAccessToken }
+        : { accessToken: lineAccessToken }
+      const res = await api.post(endpoint, body)
       applyLogin(res.data)
+      // เคลียร์ link param ออกจาก URL
+      if (linkToken) window.history.replaceState({}, '', window.location.pathname)
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'เข้าสู่ระบบด้วย LINE ไม่สำเร็จ')
     } finally {
       setLoading(false)
     }
   }
+
+  // ดึงชื่อพนักงานจาก link token (แสดงบน banner)
+  useEffect(() => {
+    if (!linkToken) return
+    api.get(`/auth/link-info/${linkToken}`)
+      .then(res => setLinkTargetName(res.data.targetName))
+      .catch(() => setError('ลิงก์ผูกบัญชีหมดอายุหรือถูกใช้แล้ว'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // หลัง LIFF redirect กลับมา — ดึง token แล้ว login ต่อ
   useEffect(() => {
@@ -106,6 +126,17 @@ export default function LoginPage() {
             {t('auth.login.subtitle')}
           </p>
         </div>
+
+        {/* Link account banner */}
+        {linkTargetName && (
+          <div className="mb-4 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl p-3 text-center">
+            <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+              🔗 ผูกบัญชี LINE สำหรับ
+            </p>
+            <p className="text-base font-bold text-emerald-900 dark:text-emerald-100">{linkTargetName}</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">กดปุ่มด้านล่างเพื่อยืนยันด้วย LINE</p>
+          </div>
+        )}
 
         {/* LINE Login Button */}
         <button

@@ -17,8 +17,108 @@ public class AuthController(
     JwtService jwtService,
     LineService lineService,
     PasswordService passwordService,
-    LineOtpService lineOtpService) : ControllerBase
+    LineOtpService lineOtpService,
+    IConfiguration config) : ControllerBase
 {
+    // ----------------------------------------------------------------
+    // QR Account Linking — แอดมินสร้างโทเคนผูก LINE ให้พนักงาน
+    // ----------------------------------------------------------------
+    [HttpPost("link-token")]
+    [Authorize]
+    public async Task<IActionResult> CreateLinkToken([FromBody] CreateLinkTokenRequest req)
+    {
+        var tenantId = User.GetTenantId();
+        var targetUser = await db.Users
+            .FirstOrDefaultAsync(u => u.Id == req.UserId && u.TenantId == tenantId && u.DeletedAt == null);
+
+        if (targetUser == null)
+            return NotFound(new { message = "ไม่พบพนักงานนี้" });
+
+        // ลบ token เก่าที่ยังไม่ใช้ของ user นี้
+        var oldTokens = await db.AccountLinkTokens
+            .Where(t => t.TargetUserId == req.UserId && t.UsedAt == null)
+            .ToListAsync();
+        db.AccountLinkTokens.RemoveRange(oldTokens);
+
+        var token = Convert.ToHexString(Guid.NewGuid().ToByteArray())[..16];
+        var linkToken = new AccountLinkToken
+        {
+            TenantId = targetUser.TenantId,
+            TargetUserId = req.UserId,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddHours(24),
+        };
+        db.AccountLinkTokens.Add(linkToken);
+        await db.SaveChangesAsync();
+
+        var liffId = config["Line:LiffId"] ?? "";
+        var liffUrl = $"https://liff.line.me/{liffId}?link={token}";
+
+        return Ok(new
+        {
+            token,
+            liffUrl,
+            targetName = targetUser.DisplayName,
+            expiresAt = linkToken.ExpiresAt,
+        });
+    }
+
+    // ดูข้อมูล token (สำหรับหน้าผูกบัญชีก่อนยืนยัน)
+    [HttpGet("link-info/{token}")]
+    public async Task<IActionResult> GetLinkInfo(string token)
+    {
+        var linkToken = await db.AccountLinkTokens
+            .Include(t => t.TargetUser)
+            .FirstOrDefaultAsync(t => t.Token == token);
+
+        if (linkToken == null || linkToken.UsedAt != null || linkToken.ExpiresAt < DateTime.UtcNow)
+            return NotFound(new { message = "ลิงก์ผูกบัญชีหมดอายุหรือถูกใช้แล้ว" });
+
+        return Ok(new { targetName = linkToken.TargetUser.DisplayName });
+    }
+
+    // พนักงานสแกน QR → LINE login → ผูก LINE เข้ากับ user + login เข้าระบบ
+    [HttpPost("link-line")]
+    public async Task<IActionResult> LinkLine([FromBody] LinkLineRequest req)
+    {
+        var linkToken = await db.AccountLinkTokens
+            .Include(t => t.TargetUser)
+            .FirstOrDefaultAsync(t => t.Token == req.LinkToken);
+
+        if (linkToken == null || linkToken.UsedAt != null || linkToken.ExpiresAt < DateTime.UtcNow)
+            return BadRequest(new { message = "ลิงก์ผูกบัญชีหมดอายุหรือถูกใช้แล้ว" });
+
+        // verify LINE access token → ได้ lineUserId จริง
+        var verify = await lineService.VerifyAccessTokenAsync(req.AccessToken);
+        if (!verify.Success)
+            return Unauthorized(new { message = verify.ErrorMessage });
+
+        var lineUserId = verify.LineUserId!;
+
+        // เช็คว่า LINE นี้ถูกผูกกับ user อื่นแล้วหรือยัง
+        var alreadyLinked = await db.Users.AnyAsync(u =>
+            u.LineUserId == lineUserId && u.Id != linkToken.TargetUserId && u.DeletedAt == null);
+        if (alreadyLinked)
+            return BadRequest(new { message = "LINE นี้ถูกผูกกับบัญชีอื่นแล้ว" });
+
+        // ผูก LINE เข้ากับ user
+        var user = await db.Users
+            .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
+                .ThenInclude(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
+            .FirstAsync(u => u.Id == linkToken.TargetUserId);
+
+        user.LineUserId = lineUserId;
+        if (!string.IsNullOrWhiteSpace(verify.DisplayName) && string.IsNullOrWhiteSpace(user.DisplayName))
+            user.DisplayName = verify.DisplayName;
+        if (!string.IsNullOrWhiteSpace(verify.AvatarUrl))
+            user.AvatarUrl = verify.AvatarUrl;
+
+        linkToken.UsedAt = DateTime.UtcNow;
+        linkToken.LinkedLineUserId = lineUserId;
+
+        return Ok(await IssueTokensAsync(user));
+    }
+
     // ----------------------------------------------------------------
     // Username/Password Login (สำรอง — ใช้เมื่อเปลี่ยน LINE/มือถือ)
     // ----------------------------------------------------------------
@@ -404,3 +504,7 @@ public record SetCredentialsRequest(
 public record RequestResetOtpRequest(string Username);
 
 public record ResetPasswordRequest(string Username, string Otp, string NewPassword);
+
+public record CreateLinkTokenRequest(Guid UserId);
+
+public record LinkLineRequest(string LinkToken, string AccessToken);
