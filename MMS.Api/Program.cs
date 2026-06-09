@@ -55,7 +55,11 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
-    options.UseNpgsql(connectionString);
+    options.UseNpgsql(connectionString, npgsql =>
+    {
+        npgsql.CommandTimeout(60);
+        npgsql.EnableRetryOnFailure(3);
+    });
     var interceptor = sp.GetService<AuditInterceptor>();
     if (interceptor != null) options.AddInterceptors(interceptor);
 });
@@ -137,8 +141,17 @@ var app = builder.Build();
 // Auto-migrate on startup (production)
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+        logger.LogInformation("Database migration completed.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database migration failed — app will continue without migration.");
+    }
 }
 
 app.UseSwagger();
