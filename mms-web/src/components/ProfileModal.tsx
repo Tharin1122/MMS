@@ -3,7 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
 import { LinkLineQRModal } from './LinkLineQRModal'
 
-type FieldKey = 'username' | 'password' | 'confirm'
+type FieldKey = 'username' | 'current' | 'password' | 'confirm'
 
 export function ProfileModal({ onClose }: { onClose: () => void }) {
   const { logout } = useAuthStore()
@@ -13,13 +13,15 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
-  const [origUsername, setOrigUsername] = useState('')
+  const [usernameLocked, setUsernameLocked] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [hasPassword, setHasPassword] = useState(false)
   const [hasLine, setHasLine] = useState(false)
   const [showLinkQR, setShowLinkQR] = useState(false)
+  const [changingPw, setChangingPw] = useState(false)  // เปิดฟอร์มเปลี่ยนรหัส
 
   const [loading, setLoading] = useState(false)
   const [invalid, setInvalid] = useState<Set<FieldKey>>(new Set())
@@ -33,10 +35,11 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         setUserId(d.userId ?? '')
         setDisplayName(d.displayName ?? '')
         setUsername(d.username ?? '')
-        setOrigUsername(d.username ?? '')
+        setUsernameLocked(!!d.username)        // ตั้งแล้ว → ล็อก
         setPhone(d.phone ?? '')
         setAvatarUrl(d.avatarUrl ?? null)
         setHasPassword(!!d.hasPassword)
+        setChangingPw(!d.hasPassword)          // ยังไม่มีรหัส → เปิดฟอร์มตั้งรหัสเลย
         setHasLine(!!d.hasLine)
       })
       .catch(() => setMsg({ type: 'err', text: 'โหลดข้อมูลโปรไฟล์ไม่สำเร็จ' }))
@@ -46,21 +49,29 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const save = async () => {
     setMsg(null)
     const bad = new Set<FieldKey>()
+    const settingUsername = !usernameLocked && username.trim() !== ''
 
-    // Validation
-    if (username.trim() && username.trim().length < 3) bad.add('username')
-    if (username.trim() && !/^[a-zA-Z0-9_]+$/.test(username.trim())) bad.add('username')
-    if (username.trim() && !hasPassword && !password) bad.add('password')
-    if (password && password.length < 6) bad.add('password')
-    if (password && password !== confirmPassword) bad.add('confirm')
+    // Validation — username
+    if (settingUsername && username.trim().length < 3) bad.add('username')
+    if (settingUsername && !/^[a-zA-Z0-9_]+$/.test(username.trim())) bad.add('username')
+    // ตั้ง username ครั้งแรก ต้องมีรหัสผ่านด้วย
+    if (settingUsername && !hasPassword && !password) bad.add('password')
+
+    // Validation — password (เฉพาะตอนกำลังเปลี่ยน/ตั้งรหัส)
+    if (changingPw && password) {
+      if (hasPassword && !currentPassword) bad.add('current')
+      if (password.length < 6) bad.add('password')
+      if (password !== confirmPassword) bad.add('confirm')
+    }
 
     if (bad.size > 0) {
       setInvalid(bad)
       let text = 'ข้อมูลไม่ถูกต้อง'
       if (bad.has('username')) text = 'ชื่อผู้ใช้: อย่างน้อย 3 ตัว ใช้ตัวอักษร ตัวเลข _ เท่านั้น'
+      else if (bad.has('current')) text = 'กรุณากรอกรหัสผ่านเดิม'
       else if (bad.has('password') && !hasPassword && !password) text = 'กรุณาตั้งรหัสผ่านด้วย เพื่อใช้เข้าระบบด้วยชื่อผู้ใช้นี้'
       else if (bad.has('password')) text = 'รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร'
-      else if (bad.has('confirm')) text = 'รหัสผ่านไม่ตรงกัน'
+      else if (bad.has('confirm')) text = 'รหัสผ่านใหม่ไม่ตรงกัน'
       setMsg({ type: 'err', text })
       return
     }
@@ -70,14 +81,18 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
     try {
       const body: Record<string, string> = {}
       if (displayName.trim()) body.displayName = displayName.trim()
-      if (username.trim() && username.trim() !== origUsername) body.username = username.trim()
-      if (password) body.password = password
+      if (settingUsername) body.username = username.trim()
+      if (changingPw && password) {
+        body.password = password
+        if (hasPassword) body.currentPassword = currentPassword
+      }
       body.phone = phone.trim()
 
       await api.post('/auth/set-credentials', body)
-      setMsg({ type: 'ok', text: 'บันทึกสำเร็จ — ครั้งหน้าเข้าด้วยรหัสผ่านได้เลย' })
-      if (password) setHasPassword(true)
-      setOrigUsername(username.trim())
+      setMsg({ type: 'ok', text: 'บันทึกสำเร็จ' })
+      if (password) { setHasPassword(true); setChangingPw(false) }
+      if (settingUsername) setUsernameLocked(true)
+      setCurrentPassword('')
       setPassword('')
       setConfirmPassword('')
     } catch (err: any) {
@@ -91,7 +106,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -128,26 +143,60 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
 
             <div className="space-y-3">
               <Field label="ชื่อที่แสดง" value={displayName} onChange={setDisplayName} placeholder="ชื่อที่แสดง" />
+
               <Field
                 label="ชื่อผู้ใช้ (สำหรับ login)" value={username}
                 onChange={v => { setUsername(v); clearInvalid('username') }}
                 placeholder="เช่น owner01" autoComplete="username"
-                hint="ตัวอักษร ตัวเลข _ เท่านั้น" error={invalid.has('username')}
+                disabled={usernameLocked}
+                hint={usernameLocked ? '🔒 ตั้งแล้วเปลี่ยนไม่ได้' : 'ตัวอักษร ตัวเลข _ เท่านั้น'}
+                error={invalid.has('username')}
               />
-              <Field
-                label={hasPassword ? 'เปลี่ยนรหัสผ่าน (ถ้าต้องการ)' : 'รหัสผ่านใหม่ *'} value={password}
-                onChange={v => { setPassword(v); clearInvalid('password') }}
-                placeholder="อย่างน้อย 6 ตัว" type="password" autoComplete="new-password"
-                error={invalid.has('password')}
-              />
-              {password && (
-                <Field
-                  label="ยืนยันรหัสผ่าน" value={confirmPassword}
-                  onChange={v => { setConfirmPassword(v); clearInvalid('confirm') }}
-                  placeholder="กรอกรหัสผ่านอีกครั้ง" type="password" autoComplete="new-password"
-                  error={invalid.has('confirm')}
-                />
+
+              {/* รหัสผ่าน */}
+              {!changingPw ? (
+                <button
+                  onClick={() => setChangingPw(true)}
+                  className="w-full py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                >
+                  🔑 เปลี่ยนรหัสผ่าน
+                </button>
+              ) : (
+                <div className="space-y-3 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-300">
+                    {hasPassword ? 'เปลี่ยนรหัสผ่าน' : 'ตั้งรหัสผ่านครั้งแรก'}
+                  </p>
+                  {hasPassword && (
+                    <Field
+                      label="รหัสผ่านเดิม *" value={currentPassword}
+                      onChange={v => { setCurrentPassword(v); clearInvalid('current') }}
+                      placeholder="รหัสผ่านปัจจุบัน" type="password" autoComplete="current-password"
+                      error={invalid.has('current')}
+                    />
+                  )}
+                  <Field
+                    label={hasPassword ? 'รหัสผ่านใหม่ *' : 'รหัสผ่าน *'} value={password}
+                    onChange={v => { setPassword(v); clearInvalid('password') }}
+                    placeholder="อย่างน้อย 6 ตัว" type="password" autoComplete="new-password"
+                    error={invalid.has('password')}
+                  />
+                  <Field
+                    label="ยืนยันรหัสผ่าน *" value={confirmPassword}
+                    onChange={v => { setConfirmPassword(v); clearInvalid('confirm') }}
+                    placeholder="กรอกรหัสผ่านอีกครั้ง" type="password" autoComplete="new-password"
+                    error={invalid.has('confirm')}
+                  />
+                  {hasPassword && (
+                    <button
+                      onClick={() => { setChangingPw(false); setCurrentPassword(''); setPassword(''); setConfirmPassword(''); clearAll() }}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      ยกเลิกการเปลี่ยนรหัส
+                    </button>
+                  )}
+                </div>
               )}
+
               <Field label="เบอร์โทร (ไว้รีเซ็ตรหัส)" value={phone} onChange={setPhone} placeholder="08xxxxxxxx" />
             </div>
 
@@ -193,9 +242,13 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
       setInvalid(next)
     }
   }
+  function clearAll() {
+    setInvalid(new Set())
+    setMsg(null)
+  }
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', autoComplete, hint, error }: {
+function Field({ label, value, onChange, placeholder, type = 'text', autoComplete, hint, error, disabled }: {
   label: string
   value: string
   onChange: (v: string) => void
@@ -204,6 +257,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', autoComplet
   autoComplete?: string
   hint?: string
   error?: boolean
+  disabled?: boolean
 }) {
   return (
     <div>
@@ -214,7 +268,9 @@ function Field({ label, value, onChange, placeholder, type = 'text', autoComplet
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className={`w-full text-sm border rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 transition
+        disabled={disabled}
+        className={`w-full text-sm border rounded-lg px-3 py-2 text-gray-800 dark:text-white focus:outline-none focus:ring-2 transition
+          ${disabled ? 'bg-gray-100 dark:bg-gray-900 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-gray-700'}
           ${error
             ? 'border-red-400 focus:ring-red-300 bg-red-50 dark:bg-red-900/20'
             : 'border-gray-300 dark:border-gray-600 focus:ring-emerald-300'}`}

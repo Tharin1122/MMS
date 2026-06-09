@@ -157,18 +157,37 @@ public class AuthController(
         var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
         if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
 
+        // Username — ตั้งได้ครั้งเดียว เปลี่ยนไม่ได้
         if (!string.IsNullOrWhiteSpace(req.Username))
         {
-            var taken = await db.Users.AnyAsync(u =>
-                u.Username == req.Username && u.Id != userId && u.DeletedAt == null);
-            if (taken) return BadRequest(new { message = "ชื่อผู้ใช้นี้ถูกใช้แล้ว" });
-            user.Username = req.Username.Trim();
+            var newUsername = req.Username.Trim();
+            if (!string.IsNullOrEmpty(user.Username))
+            {
+                if (user.Username != newUsername)
+                    return BadRequest(new { message = "ไม่สามารถเปลี่ยนชื่อผู้ใช้ได้ (ตั้งได้ครั้งเดียว)" });
+            }
+            else
+            {
+                var taken = await db.Users.AnyAsync(u =>
+                    u.Username == newUsername && u.Id != userId && u.DeletedAt == null);
+                if (taken) return BadRequest(new { message = "ชื่อผู้ใช้นี้มีคนใช้แล้ว กรุณาเลือกชื่ออื่น" });
+                user.Username = newUsername;
+            }
         }
 
+        // Password — ถ้ามีรหัสเดิมอยู่แล้ว ต้องยืนยันรหัสเดิมก่อนเปลี่ยน
         if (!string.IsNullOrWhiteSpace(req.Password))
         {
             if (req.Password.Length < 6)
                 return BadRequest(new { message = "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" });
+
+            if (!string.IsNullOrEmpty(user.PasswordHash))
+            {
+                if (string.IsNullOrWhiteSpace(req.CurrentPassword)
+                    || !passwordService.Verify(user, user.PasswordHash, req.CurrentPassword))
+                    return BadRequest(new { message = "รหัสผ่านเดิมไม่ถูกต้อง" });
+            }
+
             user.PasswordHash = passwordService.Hash(user, req.Password);
         }
 
@@ -510,6 +529,7 @@ public record LoginRequest(string Username, string Password);
 public record SetCredentialsRequest(
     string? Username,
     string? Password,
+    string? CurrentPassword,
     string? Phone,
     string? DisplayName);
 
