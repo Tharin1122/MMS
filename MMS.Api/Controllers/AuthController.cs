@@ -116,7 +116,13 @@ public class AuthController(
         linkToken.UsedAt = DateTime.UtcNow;
         linkToken.LinkedLineUserId = lineUserId;
 
-        return Ok(await IssueTokensAsync(user));
+        var result = await IssueTokensAsync(user);
+
+        // ส่งข้อความ LINE ยืนยันการผูกบัญชี — เฉพาะ LINE ของคนที่เพิ่งผูกเท่านั้น
+        await lineOtpService.SendTextAsync(lineUserId,
+            $"✅ ผูกบัญชีสำเร็จ!\nคุณ {user.DisplayName} ได้เชื่อมต่อ LINE กับระบบ BaanSuay เรียบร้อยแล้ว\nตั้งแต่นี้สามารถเข้าระบบด้วย LINE และรับการแจ้งเตือนคิวงานได้เลย");
+
+        return Ok(result);
     }
 
     // ----------------------------------------------------------------

@@ -12,6 +12,8 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const [userId, setUserId] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
+  const [origDisplayName, setOrigDisplayName] = useState('')
+  const [origPhone, setOrigPhone] = useState('')
   const [username, setUsername] = useState('')
   const [usernameLocked, setUsernameLocked] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -34,9 +36,11 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         const d = res.data
         setUserId(d.userId ?? '')
         setDisplayName(d.displayName ?? '')
+        setOrigDisplayName(d.displayName ?? '')
         setUsername(d.username ?? '')
         setUsernameLocked(!!d.username)        // ตั้งแล้ว → ล็อก
         setPhone(d.phone ?? '')
+        setOrigPhone(d.phone ?? '')
         setAvatarUrl(d.avatarUrl ?? null)
         setHasPassword(!!d.hasPassword)
         setChangingPw(!d.hasPassword)          // ยังไม่มีรหัส → เปิดฟอร์มตั้งรหัสเลย
@@ -107,6 +111,8 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
       setMsg({ type: 'ok', text: 'บันทึกสำเร็จ' })
       if (password) { setHasPassword(true); setChangingPw(false) }
       if (settingUsername) setUsernameLocked(true)
+      setOrigDisplayName(displayName.trim())
+      setOrigPhone(phone.trim())
       setCurrentPassword('')
       setPassword('')
       setConfirmPassword('')
@@ -122,6 +128,13 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
       setLoading(false)
     }
   }
+
+  // มีอะไรเปลี่ยนที่ต้องบันทึกไหม → ถ้าไม่มี ซ่อนปุ่มบันทึก
+  const isDirty =
+    displayName.trim() !== origDisplayName.trim() ||
+    phone.trim() !== origPhone.trim() ||
+    (!usernameLocked && username.trim() !== '') ||
+    (changingPw && (!!password || !!confirmPassword || !!currentPassword))
 
   return (
     <>
@@ -227,13 +240,15 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
               </p>
             )}
 
-            <button
-              onClick={save}
-              disabled={loading}
-              className="w-full mt-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition"
-            >
-              {loading ? 'กำลังบันทึก...' : 'บันทึก'}
-            </button>
+            {isDirty && (
+              <button
+                onClick={save}
+                disabled={loading}
+                className="w-full mt-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 transition"
+              >
+                {loading ? 'กำลังบันทึก...' : 'บันทึก'}
+              </button>
+            )}
 
             <button
               onClick={logout}
