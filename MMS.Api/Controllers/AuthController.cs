@@ -365,14 +365,23 @@ public class AuthController(
     /// </summary>
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
+        var userId = User.GetUserId();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
+        if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+
         return Ok(new
         {
-            userId = User.GetUserId(),
-            tenantId = User.GetTenantId(),
-            branchId = User.GetBranchId(),
-            displayName = User.GetDisplayName(),
+            userId = user.Id,
+            tenantId = user.TenantId,
+            branchId = user.BranchId,
+            displayName = user.DisplayName,
+            username = user.Username,
+            phone = user.Phone,
+            avatarUrl = user.AvatarUrl,
+            hasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+            hasLine = !string.IsNullOrEmpty(user.LineUserId),
             permissions = User.GetPermissions()
         });
     }
