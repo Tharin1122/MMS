@@ -30,7 +30,7 @@ export function SignalRProvider({ children }: { children: React.ReactNode }) {
     if (!accessToken) return
 
     const conn = new signalR.HubConnectionBuilder()
-      .withUrl('http://localhost:5065/hubs/mms', {
+      .withUrl(`${import.meta.env.VITE_API_BASE ?? 'http://localhost:5065'}/hubs/mms`, {
         accessTokenFactory: () => useAuthStore.getState().accessToken ?? '',
         transport: signalR.HttpTransportType.WebSockets,
         skipNegotiation: true,

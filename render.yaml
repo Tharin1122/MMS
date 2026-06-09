@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: mms-api
+    runtime: dotnet
+    plan: free
+    region: singapore
+    rootDir: MMS.Api
+    buildCommand: dotnet publish -c Release -o out
+    startCommand: dotnet out/MMS.Api.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        sync: false        # ใส่ใน Render dashboard (Neon connection string)
+      - key: Jwt__Key
+        sync: false        # ใส่ใน Render dashboard
+      - key: Jwt__Issuer
+        value: MMS.Api
+      - key: Jwt__Audience
+        value: MMS.Client
+      - key: Line__ChannelId
+        sync: false
+      - key: Line__ChannelSecret
+        sync: false
+      - key: Line__ChannelAccessToken
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        sync: false        # ใส่ Vercel URL เช่น https://mms-tharin.vercel.app

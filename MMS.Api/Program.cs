@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -8,7 +8,7 @@ using MMS.Infrastructure.Persistence.Auth;
 using MMS.Infrastructure.Persistence.Interceptors;
 using MMS.Infrastructure.Persistence.Services;
 using Hangfire;
-using Hangfire.SqlServer;
+using Hangfire.PostgreSql;
 using MMS.Api.Hubs;
 using MMS.Api.Services;
 
@@ -49,9 +49,16 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// DbContext
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// DbContext — PostgreSQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+{
+    options.UseNpgsql(connectionString);
+    var interceptor = sp.GetService<AuditInterceptor>();
+    if (interceptor != null) options.AddInterceptors(interceptor);
+});
 
 // JWT
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -75,38 +82,31 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-
-                if (!string.IsNullOrEmpty(accessToken) &&
-                    path.StartsWithSegments("/hubs"))
-                {
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
                     context.Token = accessToken;
-                }
-
                 return Task.CompletedTask;
             }
         };
     });
 
 builder.Services.AddAuthorization();
-// Hangfire
+
+// Hangfire — PostgreSQL
 builder.Services.AddHangfire(c => c
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
     .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+    .UsePostgreSqlStorage(o => o.UseNpgsqlConnection(connectionString)));
 
 builder.Services.AddHangfireServer();
 builder.Services.AddHttpContextAccessor();
+
 // Services
+builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<NotificationSenderService>();
 builder.Services.AddScoped<NotificationService>();
-// SignalR
-builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeService, RealtimeService>();
-
-builder.Services.AddHttpClient<NotificationSenderService>();
-builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<ActivityTimelineService>();
 builder.Services.AddScoped<AvailabilityService>();
 builder.Services.AddScoped<BookingService>();
@@ -115,14 +115,18 @@ builder.Services.AddScoped<PaymentService>();
 builder.Services.AddScoped<RoomCleaningService>();
 
 builder.Services.AddHostedService<CleaningCheckBackgroundService>();
-
+builder.Services.AddSignalR();
+builder.Services.AddHttpClient<NotificationSenderService>();
 builder.Services.AddHttpClient<LineService>();
 
-// CORS สำหรับ React Dev
+// CORS — รองรับทั้ง local dev และ production (Vercel)
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? ["http://localhost:5173"];
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("DevPolicy", policy =>
-        policy.WithOrigins("http://localhost:5173")
+    options.AddPolicy("AppPolicy", policy =>
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
@@ -130,27 +134,28 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Auto-migrate on startup (production)
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseCors("DevPolicy");
+app.UseCors("AppPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-// Hangfire Dashboard (Dev only)
-app.UseHangfireDashboard("/hangfire");
 
-// SignalR endpoint
+if (app.Environment.IsDevelopment())
+    app.UseHangfireDashboard("/hangfire");
+
 app.MapHub<MmsHub>("/hubs/mms");
 
-// Recurring Job — ส่ง notification ทุก 1 นาที
 RecurringJob.AddOrUpdate<NotificationSenderService>(
     "send-notifications",
     svc => svc.ProcessPendingAsync(),
     Cron.Minutely);
-
-//RecurringJob.AddOrUpdate<RoomCleaningService>(
-//    "room-cleaning-check",
-//    svc => svc.ProcessCleaningRoomsAsync(),
-//    Cron.Minutely);
 
 app.Run();
