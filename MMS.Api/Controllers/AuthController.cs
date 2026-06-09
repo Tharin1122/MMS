@@ -211,6 +211,9 @@ public class AuthController(
                 avatarUrl = user.AvatarUrl,
                 tenantId = user.TenantId,
                 branchId = user.BranchId,
+                username = user.Username,
+                hasPassword = !string.IsNullOrEmpty(user.PasswordHash),
+                hasLine = !string.IsNullOrEmpty(user.LineUserId),
             },
             permissions
         };

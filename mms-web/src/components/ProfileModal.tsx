@@ -5,11 +5,12 @@ import { api } from '../api/client'
 export function ProfileModal({ onClose }: { onClose: () => void }) {
   const { user, logout } = useAuthStore()
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState(user?.username ?? '')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
+  const [hasPassword, setHasPassword] = useState(user?.hasPassword ?? false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
   const save = async () => {
@@ -21,6 +22,10 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         throw new Error('ชื่อผู้ใช้ต้องอย่างน้อย 3 ตัวอักษร')
       if (username.trim() && !/^[a-zA-Z0-9_]+$/.test(username.trim()))
         throw new Error('ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข และ _')
+
+      // ตั้ง username ครั้งแรก (ยังไม่มีรหัสผ่าน) ต้องตั้งรหัสผ่านด้วย — ไม่งั้น login ไม่ได้
+      if (username.trim() && !hasPassword && !password)
+        throw new Error('กรุณาตั้งรหัสผ่านด้วย เพื่อใช้เข้าระบบด้วยชื่อผู้ใช้นี้')
 
       if (password) {
         if (password.length < 6)
@@ -37,6 +42,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
 
       await api.post('/auth/set-credentials', body)
       setMsg({ type: 'ok', text: 'บันทึกสำเร็จ — ครั้งหน้าเข้าด้วยรหัสผ่านได้เลย' })
+      if (password) setHasPassword(true)
       setPassword('')
       setConfirmPassword('')
     } catch (err: any) {
@@ -71,7 +77,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         <div className="space-y-3">
           <Field label="ชื่อที่แสดง" value={displayName} onChange={setDisplayName} placeholder="ชื่อที่แสดง" />
           <Field label="ชื่อผู้ใช้ (สำหรับ login)" value={username} onChange={setUsername} placeholder="เช่น owner01" autoComplete="username" hint="ตัวอักษร ตัวเลข _ เท่านั้น" />
-          <Field label="รหัสผ่านใหม่" value={password} onChange={setPassword} placeholder="อย่างน้อย 6 ตัว" type="password" autoComplete="new-password" />
+          <Field label={hasPassword ? 'เปลี่ยนรหัสผ่าน (ถ้าต้องการ)' : 'รหัสผ่านใหม่ *'} value={password} onChange={setPassword} placeholder="อย่างน้อย 6 ตัว" type="password" autoComplete="new-password" />
           {password && <Field label="ยืนยันรหัสผ่าน" value={confirmPassword} onChange={setConfirmPassword} placeholder="กรอกรหัสผ่านอีกครั้ง" type="password" autoComplete="new-password" />}
           <Field label="เบอร์โทร (ไว้รีเซ็ตรหัส)" value={phone} onChange={setPhone} placeholder="08xxxxxxxx" />
         </div>

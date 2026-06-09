@@ -4,6 +4,9 @@ export interface User {
   avatarUrl: string | null
   tenantId: string
   branchId: string
+  username?: string | null
+  hasPassword?: boolean
+  hasLine?: boolean
 }
 
 export interface AuthState {
