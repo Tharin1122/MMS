@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuthStore } from './store/authStore'
 import { SignalRProvider } from './providers/SignalRProvider'
 import { CleaningCheckModal } from './components/CleaningCheckModal'
+import { ProfileModal } from './components/ProfileModal'
 import { Sidebar, type Page } from './components/layout/Sidebar'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
@@ -13,7 +14,7 @@ import UserListPage from './pages/UserListPage'
 import UserPermissionsPage from './pages/UserPermissionsPage'
 import { useDashboardStore } from './store/dashboardStore'
 
-function TopBar({ onMenuToggle, isMobile }: { onMenuToggle: () => void; isMobile: boolean }) {
+function TopBar({ onMenuToggle, isMobile, onProfileClick }: { onMenuToggle: () => void; isMobile: boolean; onProfileClick: () => void }) {
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
 
   const toggleDark = () => {
@@ -51,7 +52,11 @@ function TopBar({ onMenuToggle, isMobile }: { onMenuToggle: () => void; isMobile
           <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
         </button>
         <button className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition">💬</button>
-        <button className="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center text-sm overflow-hidden">
+        <button
+          onClick={onProfileClick}
+          className="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center text-sm overflow-hidden hover:ring-2 hover:ring-violet-300 transition"
+          title="โปรไฟล์"
+        >
           👤
         </button>
       </div>
@@ -65,6 +70,7 @@ function AppContent() {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [readOnlyUser, setReadOnlyUser] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const snapshot = useDashboardStore(s => s.snapshot) as any
 
@@ -88,6 +94,7 @@ function AppContent() {
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
       <CleaningCheckModal />
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
 
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
@@ -111,7 +118,7 @@ function AppContent() {
 
       {/* Main */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <TopBar onMenuToggle={() => setSidebarOpen(o => !o)} isMobile={isMobile} />
+        <TopBar onMenuToggle={() => setSidebarOpen(o => !o)} isMobile={isMobile} onProfileClick={() => setShowProfile(true)} />
         <main className="flex-1 overflow-y-auto">
           {page === 'dashboard' && <DashboardPage />}
           {page === 'booking'   && <WalkInPage />}

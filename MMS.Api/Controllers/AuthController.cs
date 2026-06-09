@@ -15,8 +15,106 @@ namespace MMS.Api.Controllers;
 public class AuthController(
     AppDbContext db,
     JwtService jwtService,
-    LineService lineService) : ControllerBase
+    LineService lineService,
+    PasswordService passwordService) : ControllerBase
 {
+    // ----------------------------------------------------------------
+    // Username/Password Login (สำรอง — ใช้เมื่อเปลี่ยน LINE/มือถือ)
+    // ----------------------------------------------------------------
+    [HttpPost("login")]
+    public async Task<IActionResult> Login([FromBody] LoginRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "กรุณากรอกชื่อผู้ใช้และรหัสผ่าน" });
+
+        var user = await db.Users
+            .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                    .ThenInclude(r => r.RolePermissions)
+                        .ThenInclude(rp => rp.Permission)
+            .FirstOrDefaultAsync(u =>
+                u.Username == req.Username && u.DeletedAt == null);
+
+        if (user == null || string.IsNullOrEmpty(user.PasswordHash)
+            || !passwordService.Verify(user, user.PasswordHash, req.Password))
+            return Unauthorized(new { message = "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
+
+        if (!user.IsActive)
+            return Unauthorized(new { message = "บัญชีนี้ถูกระงับการใช้งาน" });
+
+        return Ok(await IssueTokensAsync(user));
+    }
+
+    // ----------------------------------------------------------------
+    // ตั้ง/แก้ไข Username + Password + เบอร์โทร (ของตัวเอง)
+    // ----------------------------------------------------------------
+    [HttpPost("set-credentials")]
+    [Authorize]
+    public async Task<IActionResult> SetCredentials([FromBody] SetCredentialsRequest req)
+    {
+        var userId = User.GetUserId();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && u.DeletedAt == null);
+        if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+
+        if (!string.IsNullOrWhiteSpace(req.Username))
+        {
+            var taken = await db.Users.AnyAsync(u =>
+                u.Username == req.Username && u.Id != userId && u.DeletedAt == null);
+            if (taken) return BadRequest(new { message = "ชื่อผู้ใช้นี้ถูกใช้แล้ว" });
+            user.Username = req.Username.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(req.Password))
+        {
+            if (req.Password.Length < 6)
+                return BadRequest(new { message = "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" });
+            user.PasswordHash = passwordService.Hash(user, req.Password);
+        }
+
+        if (req.Phone != null) user.Phone = req.Phone.Trim();
+        if (req.DisplayName != null && req.DisplayName.Trim() != "")
+            user.DisplayName = req.DisplayName.Trim();
+
+        await db.SaveChangesAsync();
+        return Ok(new { message = "บันทึกข้อมูลสำเร็จ" });
+    }
+
+    // helper — ออก access + refresh token (ใช้ร่วมทั้ง LINE และ password login)
+    private async Task<object> IssueTokensAsync(User user)
+    {
+        user.LastLoginAt = DateTime.UtcNow;
+
+        var deviceInfo = Request.Headers.UserAgent.ToString();
+        var refreshToken = jwtService.GenerateRefreshToken(user.Id, deviceInfo);
+        db.RefreshTokens.Add(refreshToken);
+        await db.SaveChangesAsync();
+
+        var permissions = user.UserRoles
+            .Where(ur => ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)
+            .SelectMany(ur => ur.Role.RolePermissions)
+            .Select(rp => rp.Permission.Code)
+            .Distinct()
+            .ToList();
+
+        var accessToken = jwtService.GenerateToken(user, permissions);
+
+        return new
+        {
+            accessToken,
+            refreshToken = refreshToken.Token,
+            expiresIn = 60,
+            user = new
+            {
+                id = user.Id,
+                displayName = user.DisplayName,
+                avatarUrl = user.AvatarUrl,
+                tenantId = user.TenantId,
+                branchId = user.BranchId,
+            },
+            permissions
+        };
+    }
+
     // ----------------------------------------------------------------
     // LINE Login (Production) — รับ LINE Access Token จาก LIFF
     // ----------------------------------------------------------------
@@ -73,40 +171,7 @@ public class AuthController(
         if (!string.IsNullOrWhiteSpace(avatarUrl) && user.AvatarUrl != avatarUrl)
             user.AvatarUrl = avatarUrl;
 
-        user.LastLoginAt = DateTime.UtcNow;
-
-        // สร้าง Refresh Token ใหม่
-        var deviceInfo = Request.Headers.UserAgent.ToString();
-        var refreshToken = jwtService.GenerateRefreshToken(user.Id, deviceInfo);
-        db.RefreshTokens.Add(refreshToken);
-
-        await db.SaveChangesAsync();
-
-        // รวบรวม permissions
-        var permissions = user.UserRoles
-            .Where(ur => ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)
-            .SelectMany(ur => ur.Role.RolePermissions)
-            .Select(rp => rp.Permission.Code)
-            .Distinct()
-            .ToList();
-
-        var accessToken = jwtService.GenerateToken(user, permissions);
-
-        return Ok(new
-        {
-            accessToken,
-            refreshToken = refreshToken.Token,
-            expiresIn = 60, // minutes
-            user = new
-            {
-                id = user.Id,
-                displayName = user.DisplayName,
-                avatarUrl = user.AvatarUrl,
-                tenantId = user.TenantId,
-                branchId = user.BranchId,
-            },
-            permissions
-        });
+        return Ok(await IssueTokensAsync(user));
     }
 
     // ----------------------------------------------------------------
@@ -237,3 +302,11 @@ public record LineLoginRequest(
     string? AvatarUrl);
 
 public record RefreshRequest(string RefreshToken);
+
+public record LoginRequest(string Username, string Password);
+
+public record SetCredentialsRequest(
+    string? Username,
+    string? Password,
+    string? Phone,
+    string? DisplayName);
