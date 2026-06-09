@@ -49,3 +49,4 @@ EP-RPT2,Endpoint,GET /report/therapist-performance,200,PASS,object,,
 EP-RPT3,Endpoint,GET /report/popular-services,200,PASS,object,,
 EP-TML,Endpoint,GET /timeline,200,PASS,object,,
 SMOKE,Endpoint,รวม GET endpoints หา 500,0 errors,PASS,13/13 ไม่มี 500,,backend แข็งแรง ไม่มี server error
+ONBOARD-01,User,สร้าง user พร้อม username+temp pw,login ได้ทันที,PASS,สร้าง+login สำเร็จ (verify FINDING-04 fix),,onboarding ครบโดยไม่ต้องรอ LINE

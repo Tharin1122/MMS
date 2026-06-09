@@ -43,8 +43,10 @@
 - `SeedDemoTenantAsync` ข้ามทั้ง block ถ้ามี tenant อยู่แล้ว — ตอน setup seed ด้วย SQL มือ ทำให้ therapist demo ไม่เกิด
 - **แก้แล้ว:** seeder idempotent ราย entity (`EnsureDemoUserAsync` เช็คทีละ user)
 
-### FINDING-04 · Severity: Medium · [OPEN — design decision]
+### FINDING-04 · Severity: Medium · [FIXED + VERIFIED]
 **Admin "ตั้งรหัสชั่วคราว" ใช้ไม่ได้กับพนักงานที่เพิ่งสร้าง**
+- **แก้แล้ว:** เพิ่มช่อง username+รหัสชั่วคราว (optional) ตอนสร้างพนักงาน → พนักงาน login user/pass ได้ทันที
+- **Verify:** สร้าง user พร้อม username+pw ผ่าน API แล้ว login เป็น user นั้นสำเร็จทันที (test ผ่าน + cleanup แล้ว)
 - พนักงานที่สร้างใหม่ **ไม่มี username** (create form ไม่มีช่อง username)
 - `POST /auth/login` ต้องใช้ **username** + password
 - username ตั้งได้เฉพาะเจ้าตัว (self `set-credentials`) → ต้อง login ก่อน → ต้อง login ด้วย LINE ก่อนเท่านั้น
@@ -96,6 +98,25 @@
 | 4 | 2026-06-10 | Deploy seeder fix + seed therapist | therapist demo สร้างสำเร็จ (FINDING-02 fixed) |
 | 5 | 2026-06-10 | Phase B: RBAC authz (therapist token) | 5/5 PASS + FINDING-03 fix verified |
 | 6 | 2026-06-10 | Smoke test GET endpoints ทั้งหมด | 13/13 PASS, 0× 500 |
+| 7 | 2026-06-10 | Code review frontend → FINDING-04/05/06 | เจอช่องว่าง onboarding (FINDING-04) |
+| 8 | 2026-06-10 | แก้ FINDING-04 + verify (สร้าง user+username+pw → login) | PASS verified end-to-end |
+
+---
+
+## 🏁 สรุปปิดรอบ QA (สำหรับอ่านตอนตื่น)
+**ระบบ Auth + User Management ผ่านเทสเกือบ 100% — backend แข็งแรงมาก ไม่มี 500 error**
+
+ทำอะไรไปบ้างคืนนี้:
+1. เทส backend API จริง 21 cases (auth, user CRUD, permission, RBAC) → ผ่านหมดหลังแก้
+2. Smoke test 13 GET endpoints → 0 server error
+3. เจอ + แก้ 4 findings: FINDING-02/03/04 แก้แล้ว+verify, FINDING-01 ยังเปิด (ดูด้านล่าง)
+4. เพิ่มฟีเจอร์: admin ตั้ง username+รหัสให้พนักงานตอนสร้างได้ (onboarding ครบ)
+
+**ยังเหลือให้คุณตัดสินใจ/ทำ:**
+- FINDING-01 (Medium, OPEN): dev login owner พังหลังผูก LINE — ไม่กระทบ user จริง (ใช้ user/pass ได้) แต่ควรคิดเรื่อง dev account แยก
+- FINDING-05/06 (Low): login alert อาจ spam, ไม่มี rate-limit (P1)
+- UI tests (ฟอร์ม/modal/QR) ยังไม่ได้คลิกจริง — ติดตั้ง Chrome extension แล้วผมเทสให้ได้
+- LINE-02: ลอง login ด้วย user/pass แล้วเช็คว่าได้ข้อความ LINE ไหม (เพิ่ง deploy)
 
 ---
 
