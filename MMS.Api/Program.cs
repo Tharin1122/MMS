@@ -146,10 +146,17 @@ builder.Services.AddHttpClient<LineService>();
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173"];
 
+// Always include Vercel deployment URLs
+var allOrigins = allowedOrigins
+    .Concat(["https://mms-tharin.vercel.app",
+             "https://mms-tharin-tharins-projects.vercel.app"])
+    .Distinct()
+    .ToArray();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AppPolicy", policy =>
-        policy.WithOrigins(allowedOrigins)
+        policy.WithOrigins(allOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
