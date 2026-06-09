@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
+import { LinkLineQRModal } from './LinkLineQRModal'
 
 type FieldKey = 'username' | 'password' | 'confirm'
 
@@ -8,6 +9,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const { logout } = useAuthStore()
 
   const [loaded, setLoaded] = useState(false)
+  const [userId, setUserId] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [username, setUsername] = useState('')
@@ -17,6 +19,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const [phone, setPhone] = useState('')
   const [hasPassword, setHasPassword] = useState(false)
   const [hasLine, setHasLine] = useState(false)
+  const [showLinkQR, setShowLinkQR] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [invalid, setInvalid] = useState<Set<FieldKey>>(new Set())
@@ -27,6 +30,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
     api.get('/auth/me')
       .then(res => {
         const d = res.data
+        setUserId(d.userId ?? '')
         setDisplayName(d.displayName ?? '')
         setUsername(d.username ?? '')
         setOrigUsername(d.username ?? '')
@@ -84,6 +88,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6"
@@ -98,7 +103,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-gray-400 text-center py-10">กำลังโหลด...</p>
         ) : (
           <>
-            <div className="flex items-center gap-3 mb-5">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-14 h-14 rounded-full bg-violet-200 flex items-center justify-center text-2xl overflow-hidden">
                 {avatarUrl ? <img src={avatarUrl} alt="" className="w-full h-full object-cover" /> : '👤'}
               </div>
@@ -109,6 +114,17 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
                 </p>
               </div>
             </div>
+
+            {/* ผูก LINE */}
+            <button
+              onClick={() => setShowLinkQR(true)}
+              className="w-full mb-5 py-2.5 border border-[#06C755] text-[#06C755] text-sm font-semibold rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition flex items-center justify-center gap-2"
+            >
+              <svg viewBox="0 0 24 24" className="w-5 h-5 fill-[#06C755]">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.69-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 3.98-1.73 6.64-2.87 7.97-3.43 3.79-1.63 4.58-1.91 5.09-1.92.11 0 .37.03.53.17.14.12.18.28.2.46-.02.06-.02.12-.03.18z"/>
+              </svg>
+              {hasLine ? 'เปลี่ยน LINE ที่ผูก' : 'ผูกบัญชี LINE ของฉัน'}
+            </button>
 
             <div className="space-y-3">
               <Field label="ชื่อที่แสดง" value={displayName} onChange={setDisplayName} placeholder="ชื่อที่แสดง" />
@@ -159,6 +175,15 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         )}
       </div>
     </div>
+
+    {showLinkQR && userId && (
+      <LinkLineQRModal
+        userId={userId}
+        userName={displayName}
+        onClose={() => setShowLinkQR(false)}
+      />
+    )}
+    </>
   )
 
   function clearInvalid(key: FieldKey) {

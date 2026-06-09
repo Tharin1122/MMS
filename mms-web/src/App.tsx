@@ -81,6 +81,14 @@ function AppContent() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  // ปิด modal ทุกอย่างเมื่อ logout (กัน state ค้างข้าม session)
+  useEffect(() => {
+    if (!accessToken) {
+      setShowProfile(false)
+      setPage('dashboard')
+    }
+  }, [accessToken])
+
   if (!accessToken) return <LoginPage />
 
   const planType = snapshot?.plan?.planType ?? 'Free'
