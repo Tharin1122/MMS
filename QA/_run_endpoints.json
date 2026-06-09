@@ -1,0 +1,92 @@
+﻿[
+    {
+        "ID":  "DASH-01",
+        "Path":  "/dashboard",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "DASH-02",
+        "Path":  "/dashboard/schedule",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "CUST-01",
+        "Path":  "/customer",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "SVC-01",
+        "Path":  "/service",
+        "Code":  404,
+        "Detail":  ""
+    },
+    {
+        "ID":  "SVC-02",
+        "Path":  "/services",
+        "Code":  200,
+        "Detail":  "array[0]"
+    },
+    {
+        "ID":  "ROOM-01",
+        "Path":  "/room",
+        "Code":  200,
+        "Detail":  "array[0]"
+    },
+    {
+        "ID":  "THER-01",
+        "Path":  "/therapist",
+        "Code":  200,
+        "Detail":  "array[0]"
+    },
+    {
+        "ID":  "BOOK-01",
+        "Path":  "/booking",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "WALK-01",
+        "Path":  "/walkin",
+        "Code":  404,
+        "Detail":  ""
+    },
+    {
+        "ID":  "WALK-02",
+        "Path":  "/walk-in",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "QUEUE-01",
+        "Path":  "/queue",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "RPT-01",
+        "Path":  "/report/revenue",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "RPT-02",
+        "Path":  "/report/therapist-performance",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "RPT-03",
+        "Path":  "/report/popular-services",
+        "Code":  200,
+        "Detail":  "object"
+    },
+    {
+        "ID":  "TML-01",
+        "Path":  "/timeline",
+        "Code":  200,
+        "Detail":  "object"
+    }
+]

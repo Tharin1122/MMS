@@ -51,11 +51,35 @@
 
 ---
 
+## 📊 สรุปผลรวม (อัปเดตล่าสุด 2026-06-10)
+**รวม ~37 test cases · PASS 34 · FAIL 0 (เหลือ) · TODO 3 (ต้อง browser/manual)**
+
+| Phase | ขอบเขต | ผล |
+|-------|--------|-----|
+| A | Backend auth + user CRUD + permission (owner token) | 15/16 → fix แล้วเป็น 16/16 |
+| B | RBAC authorization-denial (therapist token) | 5/5 |
+| Smoke | GET endpoints ทั้งหมด หา 500 | 13/13 ไม่มี 500 |
+
+**ไฮไลต์ความปลอดภัยที่ verify ผ่าน:**
+- เปลี่ยนรหัสต้องใส่รหัสเดิมถูก (กันคนแย่งเปลี่ยน)
+- บล็อก/แก้สิทธิ์ตัวเองไม่ได้
+- therapist เข้าถึง user management ไม่ได้ทุกทาง (403)
+- username ล็อกหลังตั้ง
+
+**TODO ที่เหลือ (ต้องเครื่องมือเพิ่ม):**
+- UI-02/03/04: ต้องติดตั้ง Chrome extension เพื่อคลิกเทสฟอร์มจริง
+- OTP-02/03: ต้องส่ง OTP จริง (เลี่ยงเพราะจะ spam LINE ผู้ใช้ขณะหลับ)
+- LINE-02: login user/pass แล้วเช็คข้อความ LINE (รอผู้ใช้ verify)
+
 ## Test Run History
 | รอบ | เวลา | ทำอะไร | ผล |
 |-----|------|--------|-----|
-| 1 | 2026-06-10 | ยิง dev login owner + negative login + roles/list | dev login 401 (FINDING-01), AUTH-03 (wrong login→401) PASS, ที่เหลือ BLOCKED ไม่มี token |
+| 1 | 2026-06-10 | dev login owner + negative login | dev login 401 (FINDING-01), AUTH-03 PASS |
 | 2 | 2026-06-10 | ลอง therapist demo login | 401 (FINDING-02) |
+| 3 | 2026-06-10 | Phase A: owner token full suite (16 tests) | 15 PASS 1 FAIL (FINDING-03 role ซ้ำ) |
+| 4 | 2026-06-10 | Deploy seeder fix + seed therapist | therapist demo สร้างสำเร็จ (FINDING-02 fixed) |
+| 5 | 2026-06-10 | Phase B: RBAC authz (therapist token) | 5/5 PASS + FINDING-03 fix verified |
+| 6 | 2026-06-10 | Smoke test GET endpoints ทั้งหมด | 13/13 PASS, 0× 500 |
 
 ---
 

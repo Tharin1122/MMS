@@ -1,0 +1,47 @@
+﻿[
+    {
+        "ID":  "AUTHZ-01",
+        "Name":  "therapist GET /user",
+        "Expected":  "403",
+        "Pass":  true,
+        "Actual":  "HTTP 403",
+        "Severity":  "",
+        "Comment":  "RBAC กัน USER_VIEW ถูกต้อง"
+    },
+    {
+        "ID":  "USER-03",
+        "Name":  "therapist สร้าง user",
+        "Expected":  "403",
+        "Pass":  true,
+        "Actual":  "HTTP 403",
+        "Severity":  "",
+        "Comment":  "กัน USER_CREATE ถูกต้อง"
+    },
+    {
+        "ID":  "PERM-04",
+        "Name":  "therapist แก้สิทธิ์",
+        "Expected":  "403",
+        "Pass":  true,
+        "Actual":  "HTTP 403",
+        "Severity":  "",
+        "Comment":  "กัน USER_ROLE_ASSIGN ถูกต้อง"
+    },
+    {
+        "ID":  "USER-01b",
+        "Name":  "roles dedup (verify fix)",
+        "Expected":  "no dup",
+        "Pass":  true,
+        "Actual":  "names=Owner,Therapist,Manager,Reception,Cashier dup=0",
+        "Severity":  "",
+        "Comment":  "FINDING-03 fix verify"
+    },
+    {
+        "ID":  "AUTH-10",
+        "Name":  "therapist แก้โปรไฟล์ตัวเอง",
+        "Expected":  "200",
+        "Pass":  true,
+        "Actual":  "ok",
+        "Severity":  "",
+        "Comment":  "self-service ใช้ได้ทุก role"
+    }
+]
