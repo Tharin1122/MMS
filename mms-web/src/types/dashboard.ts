@@ -2,7 +2,7 @@ export interface TherapistItem {
   id: string
   displayName: string
   code: string | null
-  avatarUrl?: string | null
+  avatarUrl: string | null
   currentStatus: number
 }
 

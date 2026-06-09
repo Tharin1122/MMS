@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { DashboardSnapshot } from '../types'
+import type { DashboardSnapshot } from '../types/dashboard'
 
 interface DashboardStore {
   snapshot: DashboardSnapshot | null
