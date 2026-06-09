@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import * as signalR from '@microsoft/signalr'
 import { useAuthStore } from '../store/authStore'
 // import { CleaningCheckData } from '../types/signalr'

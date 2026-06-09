@@ -76,8 +76,7 @@ export function Sidebar({ currentPage, onNavigate, planType = 'Free' }: SidebarP
         {navItems.map(item => {
           const isActive = currentPage === item.key ||
             item.children?.some(c => c.key === currentPage)
-          const locked = item.planRequired &&
-            planType === 'Free' && item.planRequired !== 'free'
+          const locked = item.planRequired && planType === 'Free'
 
           return (
             <button

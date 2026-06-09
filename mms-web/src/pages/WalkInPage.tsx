@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { t } from '../i18n/th'
 
 // ── Types ──────────────────────────────────────────
 interface Customer {

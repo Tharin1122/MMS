@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../api/client'
 import { useSignalR } from '../hooks/useSignalR'
-import { useAuthStore } from '../store/authStore'
+
 
 // ── Types ──────────────────────────────────────────
 interface QueueItem {
@@ -63,8 +63,6 @@ export default function QueueMonitorPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'queue' | 'inservice' | 'therapist'>('queue')
-  const { branchId } = useAuthStore()
-
   const load = useCallback(async () => {
     try {
       const res = await api.get('/queue')

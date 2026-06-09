@@ -139,7 +139,7 @@ function RevenuePanel({ snap }: { snap: DashboardSnapshot }) {
 }
 
 // Queue panel (right sidebar)
-function QueuePanel({ snap, planType }: { snap: DashboardSnapshot; planType: string }) {
+function QueuePanel({ snap }: { snap: DashboardSnapshot }) {
   const waiting = snap.queue.waitingList
   const inService = snap.queue.inServiceList
 
@@ -205,7 +205,7 @@ function QueuePanel({ snap, planType }: { snap: DashboardSnapshot; planType: str
 }
 
 // Mini Calendar
-function MiniCalendar({ snap }: { snap: DashboardSnapshot }) {
+function MiniCalendar({ snap: _snap }: { snap: DashboardSnapshot }) {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()

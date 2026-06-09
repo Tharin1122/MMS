@@ -173,7 +173,7 @@ export default function ReportPage() {
                   <BigNum value={summary.bookings.total} label="ทั้งหมด" />
                   <div className="space-y-1 mt-3">
                     <StatRow label="เสร็จแล้ว" value={summary.bookings.completed} color="emerald" />
-                    <StatRow label="ยืนยันแล้ว" value={summary.bookings.confirmed} color="blue" />
+
                     <StatRow label="ยกเลิก" value={summary.bookings.cancelled} color="red" />
                     <StatRow label="ไม่มา" value={summary.bookings.noShow} color="gray" />
                   </div>
