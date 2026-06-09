@@ -5,6 +5,7 @@ import type { AuthState, User } from '../types'
 interface AuthStore extends AuthState {
   login: (accessToken: string, refreshToken: string, user: User, permissions: string[]) => void
   logout: () => void
+  setUser: (patch: Partial<User>) => void
   hasPermission: (code: string) => boolean
   refreshAccessToken: () => Promise<boolean>
 }
@@ -26,6 +27,11 @@ export const useAuthStore = create<AuthStore>()(
       logout: () => {
         localStorage.clear()
         set({ accessToken: null, refreshToken: null, user: null, permissions: [] })
+      },
+
+      setUser: (patch) => {
+        const cur = get().user
+        if (cur) set({ user: { ...cur, ...patch } })
       },
 
       hasPermission: (code) => get().permissions.includes(code),

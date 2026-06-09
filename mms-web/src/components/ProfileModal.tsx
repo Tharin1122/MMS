@@ -6,7 +6,7 @@ import { LinkLineQRModal } from './LinkLineQRModal'
 type FieldKey = 'username' | 'current' | 'password' | 'confirm'
 
 export function ProfileModal({ onClose }: { onClose: () => void }) {
-  const { logout } = useAuthStore()
+  const { logout, setUser } = useAuthStore()
 
   const [loaded, setLoaded] = useState(false)
   const [userId, setUserId] = useState('')
@@ -29,26 +29,32 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const [invalid, setInvalid] = useState<Set<FieldKey>>(new Set())
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get('/auth/me')
+      const d = res.data
+      setUserId(d.userId ?? '')
+      setDisplayName(d.displayName ?? '')
+      setOrigDisplayName(d.displayName ?? '')
+      setUsername(d.username ?? '')
+      setUsernameLocked(!!d.username)
+      setPhone(d.phone ?? '')
+      setOrigPhone(d.phone ?? '')
+      setAvatarUrl(d.avatarUrl ?? null)
+      setHasPassword(!!d.hasPassword)
+      setChangingPw(!d.hasPassword)
+      setHasLine(!!d.hasLine)
+      // อัปเดต nav avatar / ชื่อ ให้ตรง DB
+      setUser({ displayName: d.displayName, avatarUrl: d.avatarUrl, hasLine: d.hasLine, username: d.username })
+    } catch {
+      setMsg({ type: 'err', text: 'โหลดข้อมูลโปรไฟล์ไม่สำเร็จ' })
+    } finally {
+      setLoaded(true)
+    }
+  }
+
   // ดึงข้อมูลโปรไฟล์สดจาก DB ทุกครั้งที่เปิด
-  useEffect(() => {
-    api.get('/auth/me')
-      .then(res => {
-        const d = res.data
-        setUserId(d.userId ?? '')
-        setDisplayName(d.displayName ?? '')
-        setOrigDisplayName(d.displayName ?? '')
-        setUsername(d.username ?? '')
-        setUsernameLocked(!!d.username)        // ตั้งแล้ว → ล็อก
-        setPhone(d.phone ?? '')
-        setOrigPhone(d.phone ?? '')
-        setAvatarUrl(d.avatarUrl ?? null)
-        setHasPassword(!!d.hasPassword)
-        setChangingPw(!d.hasPassword)          // ยังไม่มีรหัส → เปิดฟอร์มตั้งรหัสเลย
-        setHasLine(!!d.hasLine)
-      })
-      .catch(() => setMsg({ type: 'err', text: 'โหลดข้อมูลโปรไฟล์ไม่สำเร็จ' }))
-      .finally(() => setLoaded(true))
-  }, [])
+  useEffect(() => { fetchProfile() }, [])
 
   const save = async () => {
     setMsg(null)
@@ -276,6 +282,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
         userId={userId}
         userName={displayName}
         onClose={() => setShowLinkQR(false)}
+        onLinked={() => { fetchProfile(); setMsg({ type: 'ok', text: '🟢 ผูก LINE สำเร็จ!' }) }}
       />
     )}
     </>

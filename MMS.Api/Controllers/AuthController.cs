@@ -77,6 +77,17 @@ public class AuthController(
         return Ok(new { targetName = linkToken.TargetUser.DisplayName });
     }
 
+    // เช็คสถานะการผูก (desktop poll เพื่อปิด QR อัตโนมัติเมื่อมือถือสแกนเสร็จ)
+    [HttpGet("link-status/{token}")]
+    public async Task<IActionResult> LinkStatus(string token)
+    {
+        var t = await db.AccountLinkTokens.FirstOrDefaultAsync(x => x.Token == token);
+        if (t == null) return Ok(new { status = "expired" });
+        if (t.UsedAt != null) return Ok(new { status = "linked" });
+        if (t.ExpiresAt < DateTime.UtcNow) return Ok(new { status = "expired" });
+        return Ok(new { status = "pending" });
+    }
+
     // พนักงานสแกน QR → LINE login → ผูก LINE เข้ากับ user + login เข้าระบบ
     [HttpPost("link-line")]
     public async Task<IActionResult> LinkLine([FromBody] LinkLineRequest req)

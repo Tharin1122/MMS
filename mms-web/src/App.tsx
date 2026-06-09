@@ -16,6 +16,7 @@ import { useDashboardStore } from './store/dashboardStore'
 
 function TopBar({ onMenuToggle, isMobile, onProfileClick }: { onMenuToggle: () => void; isMobile: boolean; onProfileClick: () => void }) {
   const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark')
+  const user = useAuthStore(s => s.user)
 
   const toggleDark = () => {
     const next = !isDark
@@ -57,7 +58,9 @@ function TopBar({ onMenuToggle, isMobile, onProfileClick }: { onMenuToggle: () =
           className="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center text-sm overflow-hidden hover:ring-2 hover:ring-violet-300 transition"
           title="โปรไฟล์"
         >
-          👤
+          {user?.avatarUrl
+            ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+            : '👤'}
         </button>
       </div>
     </header>
