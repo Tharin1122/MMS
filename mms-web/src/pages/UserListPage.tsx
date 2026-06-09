@@ -61,12 +61,12 @@ export default function UserListPage({
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {canManage && (
+                {(canManage || isSelf) && (
                   <button
                     onClick={() => setQrUser({ id: u.id, name: u.displayName })}
                     className="text-xs border border-[#06C755] text-[#06C755] px-3 py-1.5 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20 transition"
                   >
-                    ผูก LINE
+                    {isSelf ? 'ผูก LINE ฉัน' : 'ผูก LINE'}
                   </button>
                 )}
                 <button
