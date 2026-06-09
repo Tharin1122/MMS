@@ -10,6 +10,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string, name: string) => void }) {
   const [roles, setRoles] = useState<Role[]>([])
+  const [rolesLoading, setRolesLoading] = useState(true)
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState('')
   const [roleId, setRoleId] = useState('')
@@ -17,12 +18,15 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
   const [error, setError] = useState('')
 
   useEffect(() => {
-    api.get('/user/roles').then(res => {
-      const list: Role[] = res.data.filter((r: Role) => r.name !== 'Owner') // ไม่ให้สร้าง Owner ง่ายๆ
-      setRoles(list)
-      const therapist = list.find(r => r.name === 'Therapist')
-      setRoleId(therapist?.id ?? list[0]?.id ?? '')
-    }).catch(() => setError('โหลดบทบาทไม่สำเร็จ'))
+    api.get('/user/roles')
+      .then(res => {
+        const list: Role[] = (res.data ?? []).filter((r: Role) => r.name !== 'Owner')
+        setRoles(list)
+        const therapist = list.find(r => r.name === 'Therapist')
+        setRoleId(therapist?.id ?? list[0]?.id ?? '')
+      })
+      .catch(() => setError('โหลดบทบาทไม่สำเร็จ'))
+      .finally(() => setRolesLoading(false))
   }, [])
 
   const submit = async () => {
@@ -58,10 +62,16 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
           </div>
           <div>
             <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">บทบาท *</label>
-            <select value={roleId} onChange={e => setRoleId(e.target.value)}
-              className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white">
-              {roles.map(r => <option key={r.id} value={r.id}>{ROLE_LABEL[r.name] ?? r.name}</option>)}
-            </select>
+            {rolesLoading ? (
+              <p className="text-sm text-gray-400 py-2">กำลังโหลดบทบาท...</p>
+            ) : roles.length === 0 ? (
+              <p className="text-sm text-red-500 py-2">ไม่พบบทบาทในระบบ กรุณาติดต่อผู้ดูแล</p>
+            ) : (
+              <select value={roleId} onChange={e => setRoleId(e.target.value)}
+                className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white">
+                {roles.map(r => <option key={r.id} value={r.id}>{ROLE_LABEL[r.name] ?? r.name}</option>)}
+              </select>
+            )}
           </div>
         </div>
 
