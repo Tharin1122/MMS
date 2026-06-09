@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
 import { t } from '../i18n/th'
 import { lineLogin, initLiff, liff, isLiffConfigured } from '../lib/liff'
+import { ForgotPasswordModal } from '../components/ForgotPasswordModal'
 
 export default function LoginPage() {
   const { login } = useAuthStore()
@@ -13,6 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [linkTargetName, setLinkTargetName] = useState<string | null>(null)
+  const [showForgot, setShowForgot] = useState(false)
 
   const applyLogin = (data: any) => {
     const { accessToken, refreshToken, user, permissions } = data
@@ -183,6 +185,12 @@ export default function LoginPage() {
           >
             {loading ? '...' : 'เข้าสู่ระบบ'}
           </button>
+          <button
+            onClick={() => setShowForgot(true)}
+            className="w-full text-xs text-gray-400 hover:text-emerald-600 text-center pt-1"
+          >
+            ลืมรหัสผ่าน?
+          </button>
         </div>
 
         {error && (
@@ -218,6 +226,13 @@ export default function LoginPage() {
           )}
         </div>
       </div>
+
+      {showForgot && (
+        <ForgotPasswordModal
+          onClose={() => setShowForgot(false)}
+          onDone={() => { setShowForgot(false); setError('') }}
+        />
+      )}
     </div>
   )
 }
