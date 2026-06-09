@@ -51,28 +51,43 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
     const bad = new Set<FieldKey>()
     const settingUsername = !usernameLocked && username.trim() !== ''
 
-    // Validation — username
-    if (settingUsername && username.trim().length < 3) bad.add('username')
-    if (settingUsername && !/^[a-zA-Z0-9_]+$/.test(username.trim())) bad.add('username')
-    // ตั้ง username ครั้งแรก ต้องมีรหัสผ่านด้วย
-    if (settingUsername && !hasPassword && !password) bad.add('password')
+    // ตัดสินใจว่ากำลัง "ตั้ง/เปลี่ยนรหัสผ่าน" อยู่ไหม → ถ้าใช่ ทุกช่องในฟอร์มเป็น mandatory
+    const pwRequired = changingPw && (
+      hasPassword                                   // กดเปลี่ยนรหัส (มีรหัสเดิมอยู่)
+      || settingUsername                            // ตั้ง username ครั้งแรก ต้องมีรหัส
+      || !!password || !!confirmPassword            // หรือเริ่มพิมพ์ในช่องรหัสแล้ว
+    )
 
-    // Validation — password (เฉพาะตอนกำลังเปลี่ยน/ตั้งรหัส)
-    if (changingPw && password) {
-      if (hasPassword && !currentPassword) bad.add('current')
-      if (password.length < 6) bad.add('password')
-      if (password !== confirmPassword) bad.add('confirm')
+    // ── ตรวจทุกช่อง mandatory พร้อมกัน ──
+    // Username
+    if (settingUsername) {
+      if (username.trim().length < 3 || !/^[a-zA-Z0-9_]+$/.test(username.trim()))
+        bad.add('username')
+    }
+    // Password (ทั้งฟอร์มเป็น mandatory เมื่อ pwRequired)
+    if (pwRequired) {
+      if (hasPassword && !currentPassword.trim()) bad.add('current')
+      if (!password) bad.add('password')
+      else if (password.length < 6) bad.add('password')
+      if (!confirmPassword) bad.add('confirm')
+      else if (password && password !== confirmPassword) bad.add('confirm')
     }
 
     if (bad.size > 0) {
       setInvalid(bad)
-      let text = 'ข้อมูลไม่ถูกต้อง'
-      if (bad.has('username')) text = 'ชื่อผู้ใช้: อย่างน้อย 3 ตัว ใช้ตัวอักษร ตัวเลข _ เท่านั้น'
-      else if (bad.has('current')) text = 'กรุณากรอกรหัสผ่านเดิม'
-      else if (bad.has('password') && !hasPassword && !password) text = 'กรุณาตั้งรหัสผ่านด้วย เพื่อใช้เข้าระบบด้วยชื่อผู้ใช้นี้'
-      else if (bad.has('password')) text = 'รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร'
-      else if (bad.has('confirm')) text = 'รหัสผ่านใหม่ไม่ตรงกัน'
-      setMsg({ type: 'err', text })
+      const labels: string[] = []
+      if (bad.has('username')) labels.push('ชื่อผู้ใช้')
+      if (bad.has('current')) labels.push('รหัสผ่านเดิม')
+      if (bad.has('password')) labels.push('รหัสผ่านใหม่')
+      if (bad.has('confirm')) labels.push('ยืนยันรหัสผ่าน')
+      // ข้อความเฉพาะเจาะจงถ้ารหัสไม่ตรง
+      const mismatch = password && confirmPassword && password !== confirmPassword
+      setMsg({
+        type: 'err',
+        text: mismatch
+          ? 'รหัสผ่านใหม่และยืนยันไม่ตรงกัน'
+          : `กรุณากรอกให้ถูกต้อง: ${labels.join(', ')}`
+      })
       return
     }
 
@@ -96,7 +111,13 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
       setPassword('')
       setConfirmPassword('')
     } catch (err: any) {
-      setMsg({ type: 'err', text: err?.response?.data?.message ?? 'บันทึกไม่สำเร็จ' })
+      const text = err?.response?.data?.message ?? 'บันทึกไม่สำเร็จ'
+      // ทำช่องที่เกี่ยวข้องเป็นสีแดงตาม error จาก server
+      const serverBad = new Set<FieldKey>()
+      if (text.includes('รหัสผ่านเดิม')) serverBad.add('current')
+      if (text.includes('ชื่อผู้ใช้') || text.includes('มีคนใช้')) serverBad.add('username')
+      if (serverBad.size > 0) setInvalid(serverBad)
+      setMsg({ type: 'err', text })
     } finally {
       setLoading(false)
     }
