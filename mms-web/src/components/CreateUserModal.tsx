@@ -14,6 +14,9 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
   const [displayName, setDisplayName] = useState('')
   const [phone, setPhone] = useState('')
   const [roleId, setRoleId] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [showLogin, setShowLogin] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -32,9 +35,17 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
   const submit = async () => {
     if (!displayName.trim()) { setError('กรุณากรอกชื่อพนักงาน'); return }
     if (!roleId) { setError('กรุณาเลือกบทบาท'); return }
+    if (showLogin && username.trim()) {
+      if (username.trim().length < 3 || !/^[a-zA-Z0-9_]+$/.test(username.trim())) {
+        setError('ชื่อผู้ใช้: อย่างน้อย 3 ตัว ใช้ตัวอักษร ตัวเลข _ เท่านั้น'); return
+      }
+      if (password && password.length < 6) { setError('รหัสผ่านอย่างน้อย 6 ตัว'); return }
+    }
     setLoading(true); setError('')
     try {
-      const res = await api.post('/user', { displayName: displayName.trim(), phone: phone.trim(), roleId })
+      const body: any = { displayName: displayName.trim(), phone: phone.trim(), roleId }
+      if (showLogin && username.trim()) { body.username = username.trim(); if (password) body.password = password }
+      const res = await api.post('/user', body)
       onCreated(res.data.id, res.data.displayName)
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'เพิ่มพนักงานไม่สำเร็จ')
@@ -74,6 +85,30 @@ export function CreateUserModal({ onClose, onCreated }: { onClose: () => void; o
             )}
           </div>
         </div>
+
+          {/* ตั้ง login user/pass ทันที (ออปชัน) */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+            {!showLogin ? (
+              <button onClick={() => setShowLogin(true)}
+                className="text-xs text-violet-600 dark:text-violet-400 hover:underline">
+                + ตั้งชื่อผู้ใช้/รหัสผ่านให้เลย (ให้ login ได้ทันทีไม่ต้องรอ LINE)
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">ชื่อผู้ใช้ (login)</label>
+                  <input value={username} onChange={e => setUsername(e.target.value)} placeholder="เช่น mint01" autoComplete="off"
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">รหัสผ่านชั่วคราว</label>
+                  <input value={password} onChange={e => setPassword(e.target.value)} placeholder="อย่างน้อย 6 ตัว" autoComplete="off"
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300" />
+                  <p className="text-xs text-gray-400 mt-1">บอกพนักงานให้เปลี่ยนรหัสเองภายหลัง</p>
+                </div>
+              </div>
+            )}
+          </div>
 
         {error && <p className="text-red-500 text-xs mt-3 text-center">{error}</p>}
 

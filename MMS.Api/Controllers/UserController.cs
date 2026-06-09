@@ -66,6 +66,25 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
                 new() { RoleId = role.Id, BranchId = branchId, AssignedAt = DateTime.UtcNow }
             }
         };
+
+        // (ออปชัน) ตั้ง username + รหัสชั่วคราว เพื่อให้พนักงาน login ด้วย user/pass ได้ทันที
+        if (!string.IsNullOrWhiteSpace(req.Username))
+        {
+            var uname = req.Username.Trim();
+            if (uname.Length < 3 || !System.Text.RegularExpressions.Regex.IsMatch(uname, "^[a-zA-Z0-9_]+$"))
+                return BadRequest(new { message = "ชื่อผู้ใช้: อย่างน้อย 3 ตัว ใช้ตัวอักษร ตัวเลข _ เท่านั้น" });
+            if (await db.Users.AnyAsync(u => u.Username == uname && u.DeletedAt == null))
+                return BadRequest(new { message = "ชื่อผู้ใช้นี้มีคนใช้แล้ว" });
+            user.Username = uname;
+
+            if (!string.IsNullOrWhiteSpace(req.Password))
+            {
+                if (req.Password.Length < 6)
+                    return BadRequest(new { message = "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" });
+                user.PasswordHash = passwordService.Hash(user, req.Password);
+            }
+        }
+
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
@@ -347,7 +366,7 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
 
 public record UpdatePermissionsRequest(List<string> PermissionCodes);
 
-public record CreateUserRequest(string DisplayName, string? Phone, Guid RoleId);
+public record CreateUserRequest(string DisplayName, string? Phone, Guid RoleId, string? Username, string? Password);
 
 public record UpdateUserRequest(string? DisplayName, string? Phone, bool? IsActive);
 

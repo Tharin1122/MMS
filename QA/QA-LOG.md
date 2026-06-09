@@ -43,6 +43,22 @@
 - `SeedDemoTenantAsync` ข้ามทั้ง block ถ้ามี tenant อยู่แล้ว — ตอน setup seed ด้วย SQL มือ ทำให้ therapist demo ไม่เกิด
 - **แก้แล้ว:** seeder idempotent ราย entity (`EnsureDemoUserAsync` เช็คทีละ user)
 
+### FINDING-04 · Severity: Medium · [OPEN — design decision]
+**Admin "ตั้งรหัสชั่วคราว" ใช้ไม่ได้กับพนักงานที่เพิ่งสร้าง**
+- พนักงานที่สร้างใหม่ **ไม่มี username** (create form ไม่มีช่อง username)
+- `POST /auth/login` ต้องใช้ **username** + password
+- username ตั้งได้เฉพาะเจ้าตัว (self `set-credentials`) → ต้อง login ก่อน → ต้อง login ด้วย LINE ก่อนเท่านั้น
+- ผล: admin กด "ตั้งรหัสชั่วคราว" ให้พนักงานใหม่ → พนักงานยัง login ด้วย user/pass ไม่ได้ (เพราะไม่มี username)
+- **แนะนำ (เลือก):** (ก) เพิ่มช่อง username ตอนสร้างพนักงาน + ให้ admin ตั้งได้ (ข) login ด้วย **เบอร์โทร**+รหัส แทน username (ค) ระบุชัดว่า onboarding = LINE ก่อนเสมอ แล้ว user/pass เป็น self-service เสริม
+
+### FINDING-05 · Severity: Low · [OPEN]
+**Login alert อาจ spam** — ทุกครั้งที่ login (LINE/user-pass) ส่ง LINE ทันที ถ้า login บ่อยจะรก
+- **แนะนำ:** ส่งเฉพาะ login จากอุปกรณ์/IP ใหม่ หรือมี cooldown
+
+### FINDING-06 · Severity: Low · [KNOWN/ยอมรับได้]
+**JWT เก็บใน localStorage** — เสี่ยง XSS อ่าน token ได้ (เป็น tradeoff มาตรฐาน SPA)
+**ไม่มี rate limit** ที่ /auth/login, /request-reset-otp — เสี่ยง brute force (อยู่ใน P1 roadmap แล้ว)
+
 ### FINDING-03 · Severity: Medium · [FIXED at API]
 **role "Owner" ซ้ำใน DB (2 ตัว)**
 - GET /user/roles คืน Owner 2 ครั้ง — เกิดจาก seed SQL + /auth/seed สร้าง Owner ซ้ำ
