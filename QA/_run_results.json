@@ -1,0 +1,146 @@
+﻿[
+    {
+        "ID":  "AUTH-02",
+        "Name":  "Login owner user/pass",
+        "Expected":  "200+token",
+        "Pass":  true,
+        "Actual":  "ok name=Tharin phosrirat hasLine=True",
+        "Severity":  "",
+        "Comment":  "happy path"
+    },
+    {
+        "ID":  "AUTH-09",
+        "Name":  "GET /auth/me ครบ field",
+        "Expected":  "username/hasPassword/hasLine",
+        "Pass":  true,
+        "Actual":  "username=ko1122541 hasPw=True hasLine=True phone=",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "AUTH-05",
+        "Name":  "เปลี่ยนรหัส รหัสเดิมผิด",
+        "Expected":  "400",
+        "Pass":  true,
+        "Actual":  "HTTP 400",
+        "Severity":  "",
+        "Comment":  "ปลอดภัย: บล็อกการเปลี่ยนรหัสเมื่อรหัสเดิมผิด"
+    },
+    {
+        "ID":  "AUTH-08",
+        "Name":  "Username เปลี่ยนหลังตั้ง",
+        "Expected":  "400",
+        "Pass":  true,
+        "Actual":  "HTTP 400",
+        "Severity":  "",
+        "Comment":  "username ล็อกถูกต้อง"
+    },
+    {
+        "ID":  "USER-01",
+        "Name":  "GET roles ไม่ซ้ำ",
+        "Expected":  "\u003e=4 ไม่ซ้ำ",
+        "Pass":  false,
+        "Actual":  "count=6 names=Owner,Owner,Therapist,Manager,Reception,Cashier dup=2",
+        "Severity":  "Med",
+        "Comment":  ""
+    },
+    {
+        "ID":  "USER-LIST",
+        "Name":  "GET /user list",
+        "Expected":  "array",
+        "Pass":  true,
+        "Actual":  "count=3",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "USER-02",
+        "Name":  "สร้างพนักงาน",
+        "Expected":  "200+id",
+        "Pass":  true,
+        "Actual":  "id=ba6fedff-adcb-40c0-b8d3-ba9a962ba157",
+        "Severity":  "",
+        "Comment":  "happy path"
+    },
+    {
+        "ID":  "USER-08",
+        "Name":  "admin ตั้งรหัสชั่วคราว",
+        "Expected":  "200",
+        "Pass":  true,
+        "Actual":  "ok",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "USER-04",
+        "Name":  "บล็อก/ปลดบล็อก",
+        "Expected":  "200",
+        "Pass":  true,
+        "Actual":  "ok",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "PERM-01",
+        "Name":  "สิทธิ์ไม่ซ้ำ+มีชื่อ",
+        "Expected":  "no dup + userName",
+        "Pass":  true,
+        "Actual":  "userName=QA_TEST_DELETE_ME totalCodes=42 dup=0",
+        "Severity":  "",
+        "Comment":  "verify การแก้ dedupe"
+    },
+    {
+        "ID":  "LINK-01",
+        "Name":  "สร้าง link token",
+        "Expected":  "liffUrl",
+        "Pass":  true,
+        "Actual":  "url=https://liff.line.me/2010351385-VZoj6Cmy?link=1B86E86611694743",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "LINK-02",
+        "Name":  "link-status pending",
+        "Expected":  "pending",
+        "Pass":  true,
+        "Actual":  "status=pending",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "USER-06",
+        "Name":  "ลบพนักงาน (cleanup)",
+        "Expected":  "200",
+        "Pass":  true,
+        "Actual":  "deleted ba6fedff-adcb-40c0-b8d3-ba9a962ba157",
+        "Severity":  "",
+        "Comment":  ""
+    },
+    {
+        "ID":  "USER-05",
+        "Name":  "บล็อกตัวเอง",
+        "Expected":  "400",
+        "Pass":  true,
+        "Actual":  "HTTP 400",
+        "Severity":  "",
+        "Comment":  "ป้องกันบล็อกตัวเองถูกต้อง"
+    },
+    {
+        "ID":  "PERM-03",
+        "Name":  "แก้สิทธิ์ตัวเอง",
+        "Expected":  "403",
+        "Pass":  true,
+        "Actual":  "HTTP 403",
+        "Severity":  "",
+        "Comment":  "ป้องกันแก้สิทธิ์ตัวเองถูกต้อง"
+    },
+    {
+        "ID":  "OTP-01",
+        "Name":  "ขอ OTP user ไม่มีจริง",
+        "Expected":  "404",
+        "Pass":  true,
+        "Actual":  "HTTP 404",
+        "Severity":  "",
+        "Comment":  ""
+    }
+]

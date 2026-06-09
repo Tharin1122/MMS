@@ -189,81 +189,66 @@ public static class DbSeeder
 
     private static async Task SeedDemoTenantAsync(AppDbContext db)
     {
-        // ถ้ามี Tenant อยู่แล้วไม่ต้อง seed ซ้ำ
-        if (await db.Tenants.Select(t => t.Id).AnyAsync())
-            return;
-
-        // สร้าง Tenant
-        var tenant = new Tenant
+        // Idempotent ราย entity — ใช้ slug/code/lineUserId เป็น key (ปลอดภัยถ้ารันซ้ำ)
+        var tenant = await db.Tenants.FirstOrDefaultAsync(t => t.Slug == "demo-spa");
+        if (tenant == null)
         {
-            Name = "ร้านนวดตัวอย่าง",
-            Slug = "demo-spa",
-            Phone = "02-000-0000",
-            Status = Domain.Enums.TenantStatus.Active,
-            PlanType = "Free",
-        };
-        db.Tenants.Add(tenant);
-        await db.SaveChangesAsync();
+            tenant = new Tenant
+            {
+                Name = "ร้านนวดตัวอย่าง",
+                Slug = "demo-spa",
+                Phone = "02-000-0000",
+                Status = Domain.Enums.TenantStatus.Active,
+                PlanType = "Free",
+            };
+            db.Tenants.Add(tenant);
+            await db.SaveChangesAsync();
+        }
 
-        // สร้าง Branch
-        var branch = new Branch
+        var branch = await db.Branches.FirstOrDefaultAsync(b => b.TenantId == tenant.Id && b.Code == "MAIN-01");
+        if (branch == null)
         {
-            TenantId = tenant.Id,
-            Name = "สาขาหลัก",
-            Code = "MAIN-01",
-            OpenTime = new TimeOnly(10, 0),
-            CloseTime = new TimeOnly(22, 0),
-            IsActive = true,
-        };
-        db.Branches.Add(branch);
-        await db.SaveChangesAsync();
+            branch = new Branch
+            {
+                TenantId = tenant.Id,
+                Name = "สาขาหลัก",
+                Code = "MAIN-01",
+                OpenTime = new TimeOnly(10, 0),
+                CloseTime = new TimeOnly(22, 0),
+                IsActive = true,
+            };
+            db.Branches.Add(branch);
+            await db.SaveChangesAsync();
+        }
 
-        // ดึง Role Owner
         var ownerRole = await db.Roles.FirstAsync(r => r.Name == "Owner");
         var therapistRole = await db.Roles.FirstAsync(r => r.Name == "Therapist");
 
-        // สร้าง User Owner
-        var owner = new User
+        // demo therapist สำหรับ dev login / ทดสอบ authz (idempotent)
+        // หมายเหตุ: ไม่สร้าง owner demo เพราะ owner จริงผูก LINE แล้ว (กันบัญชี owner ซ้ำ)
+        await EnsureDemoUserAsync(db, tenant.Id, branch.Id, "Utherapist_demo_001", "มิ้นท์ (Demo Therapist)", therapistRole.Id);
+        _ = ownerRole;
+    }
+
+    private static async Task EnsureDemoUserAsync(
+        AppDbContext db, Guid tenantId, Guid branchId, string lineUserId, string displayName, Guid roleId)
+    {
+        var exists = await db.Users.AnyAsync(u => u.LineUserId == lineUserId && u.DeletedAt == null);
+        if (exists) return;
+
+        db.Users.Add(new User
         {
-            TenantId = tenant.Id,
-            BranchId = branch.Id,
-            LineUserId = "Uowner_demo_001",   // ใช้ทดสอบ login
-            DisplayName = "เจ้าของร้าน (Demo)",
+            TenantId = tenantId,
+            BranchId = branchId,
+            LineUserId = lineUserId,
+            DisplayName = displayName,
             AuthProvider = Domain.Enums.AuthProvider.Line,
             IsActive = true,
             UserRoles = new List<UserRole>
-        {
-            new UserRole
             {
-                RoleId = ownerRole.Id,
-                BranchId = branch.Id,
-                AssignedAt = DateTime.UtcNow,
+                new() { RoleId = roleId, BranchId = branchId, AssignedAt = DateTime.UtcNow }
             }
-        }
-        };
-        db.Users.Add(owner);
-
-        // สร้าง User Therapist ตัวอย่าง
-        var therapistUser = new User
-        {
-            TenantId = tenant.Id,
-            BranchId = branch.Id,
-            LineUserId = "Utherapist_demo_001",  // ใช้ทดสอบ login
-            DisplayName = "มิ้นท์ (Demo Therapist)",
-            AuthProvider = Domain.Enums.AuthProvider.Line,
-            IsActive = true,
-            UserRoles = new List<UserRole>
-        {
-            new UserRole
-            {
-                RoleId = therapistRole.Id,
-                BranchId = branch.Id,
-                AssignedAt = DateTime.UtcNow,
-            }
-        }
-        };
-        db.Users.Add(therapistUser);
-
+        });
         await db.SaveChangesAsync();
     }
 

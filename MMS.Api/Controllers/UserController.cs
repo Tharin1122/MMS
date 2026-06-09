@@ -21,11 +21,14 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
     public async Task<IActionResult> GetRoles()
     {
         var tenantId = User.GetTenantId();
-        var roles = await db.Roles
+        var roles = (await db.Roles
             .Where(r => (r.TenantId == null || r.TenantId == tenantId)
                 && !r.Name.StartsWith("custom_"))
             .Select(r => new { r.Id, r.Name, r.Description })
-            .ToListAsync();
+            .ToListAsync())
+            .GroupBy(r => r.Name)           // dedupe ตามชื่อ (กัน role ซ้ำใน DB)
+            .Select(g => g.First())
+            .ToList();
         return Ok(roles);
     }
 

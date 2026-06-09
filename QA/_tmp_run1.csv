@@ -1,5 +1,0 @@
-﻿"ID","Name","Expected","Pass","Actual"
-"AUTH-01","Dev login Owner returns token+user","accessToken+user","False","no token"
-"AUTH-03","Login wrong username/password -> 401","401 Unauthorized","True","401 as expected"
-"USER-01","GET /user/roles returns roles (no Owner dup)",">=4 roles","False","The remote server returned an error: (401) Unauthorized."
-"USER-LIST","GET /user list","array","False","The remote server returned an error: (401) Unauthorized."

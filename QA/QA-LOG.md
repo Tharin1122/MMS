@@ -14,16 +14,19 @@
 
 ---
 
-## 🔴 BLOCKER ปัจจุบัน — ยังเทส endpoint ที่ต้อง auth ไม่ได้
-ไม่มีทางได้ admin token อัตโนมัติ เพราะ:
-1. dev login `Uowner_demo_001` → 401 (LineUserId ถูกเขียนทับด้วย LINE จริงตอนผูกบัญชี)
-2. dev login `Utherapist_demo_001` → 401 (ไม่เคยถูกสร้าง — seeder ข้ามเพราะ tenant มาจาก SQL manual)
-3. ไม่ทราบรหัสผ่าน owner (`ko1122541`)
+## ✅ UNBLOCKED — ได้ owner token แล้ว (ผู้ใช้ให้รหัส ko1122541)
+รัน backend API test suite ครบ: **PASS 15 / FAIL 1** (ดู QA-TestPlan.csv)
 
-**ต้องการจากผู้ใช้ (เลือก 1):**
-- (ก) บอกรหัสผ่านของ `ko1122541` → ผมเทส admin API ครบ
-- (ข) ให้ผมเพิ่ม endpoint `POST /auth/dev-token` (เฉพาะ ENV=Development) สร้าง token QA — แต่เป็น backdoor ไม่แนะนำใน prod
-- (ค) สร้าง QA account ใหม่ผ่าน UI + ตั้ง temp password แล้วบอก user/pass มา
+### สรุปผล Phase A (Owner token — backend API)
+- ✅ Auth: login user/pass, /me, เปลี่ยนรหัสต้องใส่รหัสเดิม, username ล็อกหลังตั้ง — ผ่านหมด
+- ✅ User CRUD: สร้าง/บล็อก/ปลดบล็อก/ลบ/ตั้งรหัสชั่วคราว — ผ่าน + กันบล็อกตัวเอง (400)
+- ✅ Permission: dedupe code + แสดงชื่อ user + กันแก้สิทธิ์ตัวเอง (403) — ผ่าน
+- ✅ LINE: link-token + link-status pending — ผ่าน
+- ❌ USER-01: role "Owner" ซ้ำใน DB (มี 2 ตัว) → **FINDING-03** (แก้ dedup ที่ API แล้ว)
+
+### Phase B ที่เหลือ (ต้อง therapist token)
+- USER-03 (non-owner สร้าง Owner→403), PERM-04, AUTHZ-01 (non-privileged เข้า /user→403)
+- รอ deploy seeder (สร้าง therapist demo) → เรียก /auth/seed → dev login therapist → รัน
 
 ---
 
@@ -35,10 +38,16 @@
 - ผล: dev login เดิมใช้ไม่ได้ + ถ้าจำรหัสผ่านไม่ได้ = ล็อกตัวเอง
 - **แนะนำ:** seed บัญชี QA/owner แยกที่ไม่ถูกแตะ, หรือไม่ผูก LINE ทับ account ที่เป็น dev-login, หรือเก็บ dev identifier แยกจาก LineUserId
 
-### FINDING-02 · Severity: Low · [OPEN]
+### FINDING-02 · Severity: Low · [FIXED]
 **Therapist demo ไม่ถูกสร้าง**
-- `SeedDemoTenantAsync` ข้ามทั้ง block ถ้ามี tenant อยู่แล้ว — แต่ตอน setup ผม seed tenant/owner ด้วย SQL มือ ทำให้ therapist demo ไม่เกิด
-- **แนะนำ:** seeder ควร idempotent ราย entity (เช็คทีละ user) ไม่ใช่เช็คแค่ tenant
+- `SeedDemoTenantAsync` ข้ามทั้ง block ถ้ามี tenant อยู่แล้ว — ตอน setup seed ด้วย SQL มือ ทำให้ therapist demo ไม่เกิด
+- **แก้แล้ว:** seeder idempotent ราย entity (`EnsureDemoUserAsync` เช็คทีละ user)
+
+### FINDING-03 · Severity: Medium · [FIXED at API]
+**role "Owner" ซ้ำใน DB (2 ตัว)**
+- GET /user/roles คืน Owner 2 ครั้ง — เกิดจาก seed SQL + /auth/seed สร้าง Owner ซ้ำ
+- **แก้แล้ว:** dedup by name ใน GetRoles (frontend filter Owner ออกอยู่แล้ว จึงไม่กระทบ dropdown)
+- **ยังเหลือ:** DB ยังมีแถว Owner ซ้ำ (ไม่ลบเพราะ UserRole/RolePermission อาจอ้างถึง) — แนะนำ cleanup ด้วย SQL ที่ย้าย reference ไป canonical ก่อนลบ ถ้าต้องการความสะอาด
 
 ---
 
