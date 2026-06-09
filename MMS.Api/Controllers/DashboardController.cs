@@ -186,6 +186,32 @@ public class DashboardController(
                 .ToList()
         };
 
+        // ── Monthly Revenue ──────────────────────────
+        var thisMonth = new DateTime(today.Year, today.Month, 1);
+        var monthStartUtc = thisMonth.AddHours(-7);
+        var monthPayments = await db.Payments
+            .Where(p => p.TenantId == tenantId
+                && p.BranchId == branchId
+                && p.Status == PaymentStatus.Paid
+                && p.PaidAt >= monthStartUtc
+                && p.PaidAt <= todayEndUtc
+                && p.DeletedAt == null)
+            .ToListAsync();
+
+        var monthlyRevenue = new
+        {
+            totalRevenue = monthPayments.Sum(p => p.TotalAmount),
+            totalReceipts = monthPayments.Count,
+        };
+
+        // ── Plan Info ────────────────────────────────
+        var tenant = await db.Tenants.FindAsync(tenantId);
+        var planInfo = new
+        {
+            planType = tenant?.PlanType ?? "Free",
+            trialEndsAt = tenant?.TrialEndsAt,
+        };
+
         // ── Snapshot รวม ────────────────────────────
         var snapshot = new
         {
@@ -195,10 +221,103 @@ public class DashboardController(
             rooms = roomSummary,
             queue = queueSummary,
             bookings = bookingSummary,
-            revenue = revenueSummary
+            revenue = revenueSummary,
+            monthlyRevenue,
+            plan = planInfo,
         };
 
         return Ok(snapshot);
+    }
+
+    /// <summary>
+    /// GET /api/dashboard/schedule?date=2024-05-17
+    /// ตารางงานหมอนวดรายวัน สำหรับ Timeline view
+    /// </summary>
+    [HttpGet("schedule")]
+    [RequirePermission(PermissionCodes.DashboardView)]
+    public async Task<IActionResult> GetSchedule([FromQuery] DateOnly? date)
+    {
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+        var targetDate = date ?? ThaiTime.Today;
+        var startUtc = targetDate.ToDateTime(TimeOnly.MinValue).AddHours(-7);
+        var endUtc = targetDate.ToDateTime(TimeOnly.MaxValue).AddHours(-7);
+
+        var therapists = await db.Therapists
+            .Where(t => t.TenantId == tenantId && t.BranchId == branchId
+                && t.IsActive && t.DeletedAt == null)
+            .Select(t => new { t.Id, t.DisplayName, t.AvatarUrl, t.CurrentStatus })
+            .OrderBy(t => t.DisplayName)
+            .ToListAsync();
+
+        // Walk-in items วันนี้
+        var walkInItems = await db.WalkInItems
+            .Where(i => i.TenantId == tenantId
+                && i.TherapistId != null
+                && i.StartTime != null
+                && i.StartTime >= startUtc && i.StartTime <= endUtc
+                && i.DeletedAt == null)
+            .Select(i => new
+            {
+                TherapistId = i.TherapistId!.Value,
+                i.StartTime,
+                i.EndTime,
+                ServiceName = i.Service.Name,
+                ServiceCategory = i.Service.Category.Name,
+                CustomerName = i.WalkIn.Customer.DisplayName,
+                Source = "walkin",
+            })
+            .ToListAsync();
+
+        // Booking items วันนี้
+        var bookingItems = await db.BookingItems
+            .Where(i => i.TenantId == tenantId
+                && i.TherapistId != null
+                && i.Booking.BookingDate == targetDate
+                && i.Booking.DeletedAt == null
+                && i.DeletedAt == null)
+            .Select(i => new
+            {
+                TherapistId = i.TherapistId!.Value,
+                StartTime = (DateTime?)i.Booking.BookingDate.ToDateTime(i.StartTime).AddHours(-7),
+                EndTime = (DateTime?)i.Booking.BookingDate.ToDateTime(i.EndTime).AddHours(-7),
+                ServiceName = i.Service.Name,
+                ServiceCategory = i.Service.Category.Name,
+                CustomerName = i.Booking.Customer.DisplayName,
+                Source = "booking",
+            })
+            .ToListAsync();
+
+        var allItems = walkInItems.Cast<object>().Concat(bookingItems).ToList();
+
+        var schedule = therapists.Select(t =>
+        {
+            var tItems = allItems
+                .Cast<dynamic>()
+                .Where(i => (Guid)i.TherapistId == t.Id)
+                .Select(i => new
+                {
+                    startTime = (DateTime?)i.StartTime,
+                    endTime = (DateTime?)i.EndTime,
+                    serviceName = (string)i.ServiceName,
+                    serviceCategory = (string)i.ServiceCategory,
+                    customerName = (string)i.CustomerName,
+                    source = (string)i.Source,
+                })
+                .OrderBy(i => i.startTime)
+                .ToList();
+
+            return new
+            {
+                t.Id,
+                t.DisplayName,
+                t.AvatarUrl,
+                t.CurrentStatus,
+                items = tItems,
+            };
+        });
+
+        return Ok(new { date = targetDate, therapists = schedule });
     }
 
     /// <summary>

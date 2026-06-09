@@ -36,6 +36,10 @@ public class AppDbContext(
     public DbSet<TherapistBlockTime> TherapistBlockTimes => Set<TherapistBlockTime>();
     public DbSet<TherapistService> TherapistServices => Set<TherapistService>();
 
+    // Subscription / Plan
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<TenantSubscription> TenantSubscriptions => Set<TenantSubscription>();
+
     // Phase 3–6
     public DbSet<Booking> Bookings => Set<Booking>();
     public DbSet<BookingItem> BookingItems => Set<BookingItem>();
