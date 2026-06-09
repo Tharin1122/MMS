@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import { api } from '../api/client'
 
+// Bot basic ID ของ LINE OA (BaanSuay) — ตั้งผ่าน env ได้
+const LINE_OA_ID = import.meta.env.VITE_LINE_OA_ID ?? '@269sefou'
+
 interface Props {
   userId: string
   userName: string
@@ -37,7 +40,7 @@ export function LinkLineQRModal({ userId, userName, onClose, onLinked }: Props) 
         if (res.data.status === 'linked') {
           setLinked(true)
           if (pollRef.current) clearInterval(pollRef.current)
-          setTimeout(() => { onLinked?.(); onClose() }, 1500)
+          onLinked?.()   // refresh โปรไฟล์ทันที แต่ไม่ปิด — ให้ผู้ใช้กดเพิ่มเพื่อนก่อน
         } else if (res.data.status === 'expired') {
           if (pollRef.current) clearInterval(pollRef.current)
         }
@@ -58,10 +61,18 @@ export function LinkLineQRModal({ userId, userName, onClose, onLinked }: Props) 
         </div>
 
         {linked ? (
-          <div className="py-10">
+          <div className="py-8">
             <div className="text-5xl mb-3">✅</div>
             <p className="text-base font-semibold text-emerald-600">ผูกบัญชีสำเร็จ!</p>
-            <p className="text-xs text-gray-400 mt-1">กำลังอัปเดตโปรไฟล์...</p>
+            <p className="text-xs text-gray-400 mt-1 mb-4">เพิ่มเพื่อน LINE OA เพื่อรับแจ้งเตือนคิวงาน</p>
+            <a
+              href={`https://line.me/R/ti/p/${LINE_OA_ID}`}
+              target="_blank" rel="noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#06C755] text-white text-sm font-semibold rounded-lg"
+            >
+              + เพิ่มเพื่อน BaanSuay
+            </a>
+            <button onClick={onClose} className="block w-full mt-4 text-sm text-gray-400 hover:text-gray-600">ปิด</button>
           </div>
         ) : (
           <>
