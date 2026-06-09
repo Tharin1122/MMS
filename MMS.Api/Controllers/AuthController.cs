@@ -16,7 +16,8 @@ public class AuthController(
     AppDbContext db,
     JwtService jwtService,
     LineService lineService,
-    PasswordService passwordService) : ControllerBase
+    PasswordService passwordService,
+    LineOtpService lineOtpService) : ControllerBase
 {
     // ----------------------------------------------------------------
     // Username/Password Login (สำรอง — ใช้เมื่อเปลี่ยน LINE/มือถือ)
@@ -285,6 +286,95 @@ public class AuthController(
     }
 
     // ----------------------------------------------------------------
+    // Request OTP for Password Reset
+    // ----------------------------------------------------------------
+    [HttpPost("request-reset-otp")]
+    public async Task<IActionResult> RequestResetOtp([FromBody] RequestResetOtpRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Username))
+            return BadRequest(new { message = "กรุณากรอกชื่อผู้ใช้" });
+
+        var user = await db.Users
+            .FirstOrDefaultAsync(u => u.Username == req.Username && u.DeletedAt == null);
+
+        if (user == null)
+            return NotFound(new { message = "ไม่พบผู้ใช้นี้" });
+
+        if (string.IsNullOrEmpty(user.LineUserId))
+            return BadRequest(new { message = "บัญชีนี้ยังไม่ได้ผูก LINE โปรดติดต่อผู้ดูแล" });
+
+        // ส่ง OTP
+        var otpResult = await lineOtpService.SendOtpAsync(user.LineUserId);
+        if (!otpResult.Success)
+            return BadRequest(new { message = otpResult.ErrorMessage });
+
+        // เก็บ OTP ไว้ database
+        var existingOtp = await db.OtpTokens
+            .Where(o => o.UserId == user.Id.ToString() && !o.IsUsed && o.ExpiresAt > DateTime.UtcNow)
+            .FirstOrDefaultAsync();
+
+        if (existingOtp != null)
+            db.OtpTokens.Remove(existingOtp);
+
+        var otpToken = new OtpToken
+        {
+            UserId = user.Id.ToString(),
+            Code = otpResult.Otp!,
+            ExpiresAt = otpResult.ExpiresAt!.Value,
+            Attempts = 0
+        };
+        db.OtpTokens.Add(otpToken);
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "ส่ง OTP ไปยัง LINE แล้ว (ใช้ได้ 10 นาที)" });
+    }
+
+    // ----------------------------------------------------------------
+    // Reset Password with OTP
+    // ----------------------------------------------------------------
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
+    {
+        if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Otp) || string.IsNullOrWhiteSpace(req.NewPassword))
+            return BadRequest(new { message = "กรุณากรอกข้อมูลให้ครบ" });
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Username == req.Username && u.DeletedAt == null);
+        if (user == null)
+            return NotFound(new { message = "ไม่พบผู้ใช้นี้" });
+
+        // ตรวจสอบ OTP
+        var otpToken = await db.OtpTokens
+            .Where(o => o.UserId == user.Id.ToString() && !o.IsUsed && o.ExpiresAt > DateTime.UtcNow)
+            .FirstOrDefaultAsync();
+
+        if (otpToken == null || otpToken.Code != req.Otp.Trim())
+        {
+            if (otpToken != null)
+            {
+                otpToken.Attempts++;
+                if (otpToken.Attempts >= 3)
+                {
+                    otpToken.IsUsed = true;  // Lock OTP after 3 attempts
+                    await db.SaveChangesAsync();
+                    return Unauthorized(new { message = "พยายามมากเกินไป OTP ถูกล็อก ขอใหม่เถิด" });
+                }
+                await db.SaveChangesAsync();
+            }
+            return Unauthorized(new { message = "OTP ไม่ถูกต้อง" });
+        }
+
+        // Reset password
+        if (req.NewPassword.Length < 6)
+            return BadRequest(new { message = "รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร" });
+
+        user.PasswordHash = passwordService.Hash(user, req.NewPassword);
+        otpToken.IsUsed = true;
+        await db.SaveChangesAsync();
+
+        return Ok(new { message = "รีเซ็ตรหัสผ่านสำเร็จ โปรดเข้าสู่ระบบใหม่" });
+    }
+
+    // ----------------------------------------------------------------
     // Seed (Dev only)
     // ----------------------------------------------------------------
     [HttpPost("seed")]
@@ -310,3 +400,7 @@ public record SetCredentialsRequest(
     string? Password,
     string? Phone,
     string? DisplayName);
+
+public record RequestResetOtpRequest(string Username);
+
+public record ResetPasswordRequest(string Username, string Otp, string NewPassword);

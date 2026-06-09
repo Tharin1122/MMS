@@ -131,6 +131,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<AuditInterceptor>();
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<PasswordService>();
+builder.Services.AddScoped<LineOtpService>();
 builder.Services.AddScoped<NotificationSenderService>();
 builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IRealtimeService, RealtimeService>();
