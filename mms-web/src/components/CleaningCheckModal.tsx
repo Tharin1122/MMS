@@ -1,11 +1,8 @@
 import { useSignalRContext } from '../providers/SignalRProvider'
-import { useAuthStore } from '../store/authStore'
 import { api } from '../api/client'
-import axios from 'axios'
 
 export function CleaningCheckModal() {
   const { cleaningCheckQueue, dismissCleaningCheck } = useSignalRContext()
-  const { accessToken } = useAuthStore()
 
   if (cleaningCheckQueue.length === 0) return null
 
