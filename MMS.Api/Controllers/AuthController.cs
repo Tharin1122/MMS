@@ -311,7 +311,18 @@ public class AuthController(
         if (!string.IsNullOrWhiteSpace(avatarUrl) && user.AvatarUrl != avatarUrl)
             user.AvatarUrl = avatarUrl;
 
-        return Ok(await IssueTokensAsync(user));
+        var result = await IssueTokensAsync(user);
+
+        // แจ้งเตือนความปลอดภัย: มีการเข้าสู่ระบบด้วย LINE (เฉพาะ login จริง ไม่ใช่ dev)
+        if (string.IsNullOrWhiteSpace(req.LineUserId))
+        {
+            var time = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
+            await lineOtpService.SendTextAsync(lineUserId,
+                $"🔔 เข้าสู่ระบบสำเร็จ\nสวัสดีคุณ {user.DisplayName} 👋\nเข้าระบบ BaanSuay เมื่อ {time:dd/MM/yyyy HH:mm} น.\nหากไม่ใช่คุณ โปรดเปลี่ยนรหัสผ่านทันที");
+        }
+
+        return Ok(result);
     }
 
     // ----------------------------------------------------------------
