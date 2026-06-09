@@ -7,6 +7,7 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   const [displayName, setDisplayName] = useState(user?.displayName ?? '')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
@@ -15,6 +16,19 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
     setLoading(true)
     setMsg(null)
     try {
+      // Validation
+      if (username.trim() && username.trim().length < 3)
+        throw new Error('ชื่อผู้ใช้ต้องอย่างน้อย 3 ตัวอักษร')
+      if (username.trim() && !/^[a-zA-Z0-9_]+$/.test(username.trim()))
+        throw new Error('ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข และ _')
+
+      if (password) {
+        if (password.length < 6)
+          throw new Error('รหัสผ่านต้องยาวอย่างน้อย 6 ตัวอักษร')
+        if (password !== confirmPassword)
+          throw new Error('รหัสผ่านไม่ตรงกัน')
+      }
+
       const body: Record<string, string> = {}
       if (displayName.trim()) body.displayName = displayName.trim()
       if (username.trim()) body.username = username.trim()
@@ -24,8 +38,10 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
       await api.post('/auth/set-credentials', body)
       setMsg({ type: 'ok', text: 'บันทึกสำเร็จ — ครั้งหน้าเข้าด้วยรหัสผ่านได้เลย' })
       setPassword('')
+      setConfirmPassword('')
     } catch (err: any) {
-      setMsg({ type: 'err', text: err?.response?.data?.message ?? 'บันทึกไม่สำเร็จ' })
+      const errorMsg = err?.response?.data?.message || err?.message || 'บันทึกไม่สำเร็จ'
+      setMsg({ type: 'err', text: errorMsg })
     } finally {
       setLoading(false)
     }
@@ -54,8 +70,9 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
 
         <div className="space-y-3">
           <Field label="ชื่อที่แสดง" value={displayName} onChange={setDisplayName} placeholder="ชื่อที่แสดง" />
-          <Field label="ชื่อผู้ใช้ (สำหรับ login)" value={username} onChange={setUsername} placeholder="เช่น owner01" autoComplete="username" />
+          <Field label="ชื่อผู้ใช้ (สำหรับ login)" value={username} onChange={setUsername} placeholder="เช่น owner01" autoComplete="username" hint="ตัวอักษร ตัวเลข _ เท่านั้น" />
           <Field label="รหัสผ่านใหม่" value={password} onChange={setPassword} placeholder="อย่างน้อย 6 ตัว" type="password" autoComplete="new-password" />
+          {password && <Field label="ยืนยันรหัสผ่าน" value={confirmPassword} onChange={setConfirmPassword} placeholder="กรอกรหัสผ่านอีกครั้ง" type="password" autoComplete="new-password" />}
           <Field label="เบอร์โทร (ไว้รีเซ็ตรหัส)" value={phone} onChange={setPhone} placeholder="08xxxxxxxx" />
         </div>
 
@@ -84,13 +101,14 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', autoComplete }: {
+function Field({ label, value, onChange, placeholder, type = 'text', autoComplete, hint }: {
   label: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
   type?: string
   autoComplete?: string
+  hint?: string
 }) {
   return (
     <div>
@@ -103,6 +121,7 @@ function Field({ label, value, onChange, placeholder, type = 'text', autoComplet
         autoComplete={autoComplete}
         className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-300"
       />
+      {hint && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
     </div>
   )
 }
