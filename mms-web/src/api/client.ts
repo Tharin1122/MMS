@@ -1,7 +1,8 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5065/api'
+const BASE_URL = import.meta.env.VITE_API_URL
+  ?? (import.meta.env.PROD ? 'https://mms-api-25xj.onrender.com/api' : 'http://localhost:5065/api')
 
 export const api = axios.create({
   baseURL: BASE_URL,

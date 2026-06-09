@@ -35,7 +35,9 @@ export const useAuthStore = create<AuthStore>()(
         const { refreshToken } = get()
         if (!refreshToken) return false
         try {
-          const res = await fetch('http://localhost:5065/api/auth/refresh', {
+          const apiBase = import.meta.env.VITE_API_URL
+            ?? (import.meta.env.PROD ? 'https://mms-api-25xj.onrender.com/api' : 'http://localhost:5065/api')
+          const res = await fetch(`${apiBase}/auth/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken }),
