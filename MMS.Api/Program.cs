@@ -12,6 +12,9 @@ using Hangfire.PostgreSql;
 using MMS.Api.Hubs;
 using MMS.Api.Services;
 
+// PostgreSQL: รองรับ DateTime ที่มี Kind=Unspecified/Local (เลี่ยง error timestamptz)
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Convert postgresql:// URL → Npgsql key-value format if needed
