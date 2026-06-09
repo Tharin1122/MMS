@@ -24,20 +24,24 @@ export default function UserPermissionsPage({
   readOnly?: boolean
 }) {
   const [groups, setGroups] = useState<PermissionGroup[]>([])
+  const [userName, setUserName] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<'success' | 'error' | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
 
+  const applyData = (data: any) => {
+    setUserName(data.userName ?? '')
+    setGroups(data.groups ?? [])
+    const existing = new Set<string>()
+    ;(data.groups ?? []).forEach((g: PermissionGroup) =>
+      g.permissions.forEach(p => { if (p.userHas) existing.add(p.code) })
+    )
+    setSelected(existing)
+  }
+
   useEffect(() => {
-    api.get(`/user/${userId}/permissions`).then(res => {
-      setGroups(res.data)
-      const existing = new Set<string>()
-      res.data.forEach((g: PermissionGroup) =>
-        g.permissions.forEach(p => { if (p.userHas) existing.add(p.code) })
-      )
-      setSelected(existing)
-    })
+    api.get(`/user/${userId}/permissions`).then(res => applyData(res.data))
   }, [userId])
 
   const toggle = (code: string, callerHas: boolean) => {
@@ -56,12 +60,7 @@ export default function UserPermissionsPage({
         permissionCodes: Array.from(selected)
       })
       const res = await api.get(`/user/${userId}/permissions`)
-      setGroups(res.data)
-      const updated = new Set<string>()
-      res.data.forEach((g: PermissionGroup) =>
-        g.permissions.forEach(p => { if (p.userHas) updated.add(p.code) })
-      )
-      setSelected(updated)
+      applyData(res.data)
       setToast('success')
     } catch {
       setToast('error')
@@ -86,10 +85,11 @@ export default function UserPermissionsPage({
           <div>
             <h1 className="text-lg font-bold dark:text-white">
               {readOnly ? 'ดูสิทธิ์' : 'จัดการสิทธิ์'}
+              {userName && <span className="text-emerald-600 dark:text-emerald-400"> · {userName}</span>}
             </h1>
-            {readOnly && (
-              <p className="text-xs text-gray-400">ดูได้อย่างเดียว</p>
-            )}
+            <p className="text-xs text-gray-400">
+              {readOnly ? 'ดูได้อย่างเดียว' : `กำลังจัดการสิทธิ์ของ ${userName || 'ผู้ใช้'}`}
+            </p>
           </div>
         </div>
         {!readOnly && (

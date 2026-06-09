@@ -197,7 +197,15 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
     {
         var tenantId = User.GetTenantId();
 
-        var allPermissions = await db.Permissions.ToListAsync();
+        var targetUser = await db.Users
+            .FirstOrDefaultAsync(u => u.Id == id && u.TenantId == tenantId && u.DeletedAt == null);
+        if (targetUser == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+
+        // dedupe ตาม Code (กันกรณีมี permission ซ้ำใน DB)
+        var allPermissions = (await db.Permissions.ToListAsync())
+            .GroupBy(p => p.Code)
+            .Select(g => g.First())
+            .ToList();
 
         var userPermCodes = await db.UserRoles
             .Where(ur => ur.UserId == id)
@@ -208,7 +216,7 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
 
         var callerPermCodes = User.GetPermissions();
 
-        var result = allPermissions
+        var groups = allPermissions
             .GroupBy(p => p.GroupName)
             .Select(g => new
             {
@@ -223,7 +231,7 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
                 })
             });
 
-        return Ok(result);
+        return Ok(new { userName = targetUser.DisplayName, groups });
     }
 
     /// <summary>
@@ -307,9 +315,12 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
             await db.SaveChangesAsync();
         }
 
-        var perms = await db.Permissions
+        var perms = (await db.Permissions
             .Where(p => req.PermissionCodes.Contains(p.Code))
-            .ToListAsync();
+            .ToListAsync())
+            .GroupBy(p => p.Code)
+            .Select(g => g.First())   // dedupe ตาม code
+            .ToList();
 
         var oldPerms = await db.RolePermissions
             .Where(rp => rp.RoleId == customRole.Id)
