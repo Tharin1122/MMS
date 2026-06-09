@@ -419,7 +419,7 @@ export default function DashboardPage() {
           <TherapistTimeline refreshKey={scheduleKey} />
         </div>
         <div className="space-y-4">
-          <QueuePanel snap={snap} planType={planType} />
+          <QueuePanel snap={snap} />
           <MiniCalendar snap={snap} />
           <PlanGate required="Basic" currentPlan={planType} mode="blur">
             <NotificationPanel snap={snap} />
