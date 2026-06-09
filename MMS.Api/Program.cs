@@ -14,6 +14,24 @@ using MMS.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Convert postgresql:// URL → Npgsql key-value format if needed
+static string NormalizeConnectionString(string? cs)
+{
+    if (string.IsNullOrEmpty(cs)) return cs ?? "";
+    if (!cs.StartsWith("postgresql://") && !cs.StartsWith("postgres://")) return cs;
+    var uri = new Uri(cs);
+    var userInfo = uri.UserInfo.Split(':');
+    var user = Uri.UnescapeDataString(userInfo[0]);
+    var pass = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+    var host = uri.Host;
+    var port = uri.Port > 0 ? uri.Port : 5432;
+    var db = uri.AbsolutePath.TrimStart('/');
+    var sslMode = "Require";
+    if (uri.Query.Contains("sslmode=disable")) sslMode = "Disable";
+    else if (uri.Query.Contains("sslmode=prefer")) sslMode = "Prefer";
+    return $"Host={host};Port={port};Database={db};Username={user};Password={pass};SSL Mode={sslMode};Trust Server Certificate=true";
+}
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.ReferenceHandler =
@@ -50,8 +68,9 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // DbContext — PostgreSQL
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+var connectionString = NormalizeConnectionString(
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL"));
 
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
@@ -166,9 +185,17 @@ if (app.Environment.IsDevelopment())
 
 app.MapHub<MmsHub>("/hubs/mms");
 
-RecurringJob.AddOrUpdate<NotificationSenderService>(
-    "send-notifications",
-    svc => svc.ProcessPendingAsync(),
-    Cron.Minutely);
+try
+{
+    var recurringJobs = app.Services.GetRequiredService<IRecurringJobManager>();
+    recurringJobs.AddOrUpdate<NotificationSenderService>(
+        "send-notifications",
+        svc => svc.ProcessPendingAsync(),
+        Cron.Minutely);
+}
+catch (Exception ex)
+{
+    app.Logger.LogWarning(ex, "Hangfire recurring job registration failed — skipping.");
+}
 
 app.Run();
