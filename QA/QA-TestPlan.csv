@@ -1,0 +1,37 @@
+ID,Module,Test Case,Steps,Expected,Status,Actual,Severity,Comment/Recommendation
+AUTH-01,Auth,Dev login Owner,POST /auth/line-login {lineUserId:Uowner_demo_001},200 + accessToken + user,FAIL,401 Unauthorized,Medium,FINDING-01 LineUserId ถูกเขียนทับด้วย LINE จริง ทำให้ dev login พัง
+AUTH-02,Auth,Login username/password ถูกต้อง,POST /auth/login {username pw ถูก},200 + token,BLOCKED,ยังไม่มีรหัสผ่าน owner,,รอ owner password
+AUTH-03,Auth,Login รหัสผิด,POST /auth/login {username/pw ผิด},401,PASS,401 as expected,,ทำงานถูกต้อง
+AUTH-04,Auth,Login user ที่ถูกบล็อก,block user แล้ว login,401 บัญชีถูกระงับ,TODO,,,ต้องมี token+user ทดสอบ
+AUTH-05,Auth,เปลี่ยนรหัส ใส่รหัสเดิมผิด,POST /auth/set-credentials currentPassword ผิด,400 รหัสผ่านเดิมไม่ถูกต้อง,TODO,,,ต้อง auth
+AUTH-06,Auth,เปลี่ยนรหัส รหัสเดิมถูก,POST /auth/set-credentials ถูก,200,TODO,,,ต้อง auth
+AUTH-07,Auth,Username ซ้ำ,ตั้ง username ที่มีคนใช้,400 ชื่อผู้ใช้มีคนใช้แล้ว,TODO,,,ต้อง auth + user 2 คน
+AUTH-08,Auth,Username เปลี่ยนหลังตั้ง,ตั้ง username ซ้ำสองครั้งต่างค่า,400 เปลี่ยนไม่ได้,TODO,,,ต้อง auth
+AUTH-09,Auth,Me ดึงข้อมูลสด,GET /auth/me,200 + username/phone/hasLine/hasPassword,TODO,,,ต้อง auth
+OTP-01,Auth,ขอ OTP user ไม่มี LINE,POST /auth/request-reset-otp,400 ยังไม่ผูก LINE,TODO,,,ต้องมี username เป้าหมาย
+OTP-02,Auth,ขอ OTP user มี LINE,POST /auth/request-reset-otp,200 ส่ง OTP,TODO,,,ต้อง LINE friend + token
+OTP-03,Auth,reset-password OTP ผิด,POST /auth/reset-password otp ผิด,401 OTP ไม่ถูกต้อง,TODO,,,
+OTP-04,Auth,reset OTP ผิด 3 ครั้ง,ส่ง otp ผิด 3 รอบ,ล็อก OTP,TODO,,,
+USER-01,User,GET roles,GET /user/roles,>=4 roles ไม่มี custom_,BLOCKED,401 no token,,รอ owner token
+USER-02,User,สร้างพนักงาน,POST /user {name role},200 + id,BLOCKED,,,รอ owner token
+USER-03,User,non-Owner สร้าง Owner,POST /user role=Owner ด้วย non-owner,403,TODO,,,ต้อง token ที่ไม่ใช่ owner
+USER-04,User,บล็อก/ปลดบล็อก,PUT /user/{id} {isActive},200,BLOCKED,,,รอ owner token
+USER-05,User,บล็อกตัวเอง,PUT /user/{self} {isActive:false},400 บล็อกตัวเองไม่ได้,BLOCKED,,,รอ owner token
+USER-06,User,ลบพนักงาน,DELETE /user/{id},200 soft delete,BLOCKED,,,รอ owner token
+USER-07,User,ลบตัวเอง,DELETE /user/{self},400,BLOCKED,,,รอ owner token
+USER-08,User,admin set-password,POST /user/{id}/set-password,200,BLOCKED,,,รอ owner token
+PERM-01,Permission,ดึงสิทธิ์ไม่ซ้ำ,GET /user/{id}/permissions,แต่ละ code ครั้งเดียว + userName,BLOCKED,,,รอ owner token (แก้ dedupe แล้ว รอ verify)
+PERM-02,Permission,บันทึกสิทธิ์,PUT /user/{id}/permissions,200,BLOCKED,,,รอ owner token
+PERM-03,Permission,ห้ามแก้สิทธิ์ตัวเอง,PUT /user/{self}/permissions,403,BLOCKED,,,รอ owner token
+PERM-04,Permission,ห้ามให้สิทธิ์ที่ตัวเองไม่มี,PUT permission เกินสิทธิ์ตัวเอง,403,BLOCKED,,,รอ owner token
+LINK-01,LINE,สร้าง link token,POST /auth/link-token {userId},200 + liffUrl,BLOCKED,,,รอ owner token
+LINK-02,LINE,link-status pending,GET /auth/link-status/{token},pending,BLOCKED,,,
+LINK-03,LINE,link-status ผูกแล้ว,หลังสแกน,linked,TODO,,,ต้องสแกนมือถือ (manual)
+LINK-04,LINE,link-line ผูกบัญชี,POST /auth/link-line,200 + bind LINE,TODO,,,ต้อง LINE token จริง (manual)
+LINE-01,LINE,แจ้งเตือน login LINE,login ด้วย LINE,ได้ข้อความ LINE,PASS,ผู้ใช้ยืนยันได้รับข้อความ,,manual verified by user
+LINE-02,LINE,แจ้งเตือน login user/pass,login ด้วย user/pass,ได้ข้อความ LINE,TODO,,,เพิ่ง deploy รอผู้ใช้ verify
+UI-01,Frontend,ProfileModal ไม่เปิดเองหลัง login,login,modal ปิด,PASS,แก้แล้ว (code review),,verified by user earlier
+UI-02,Frontend,Backdrop ไม่ปิดตอนมีข้อมูลค้าง,กรอกฟอร์มแล้วคลิกนอก,ไม่ปิด เตือน,TODO,,,ต้องเทส browser
+UI-03,Frontend,Validation กรอบแดงทุกช่อง,กดบันทึกฟอร์มว่าง,ทุกช่อง mandatory แดง,TODO,,,ต้องเทส browser
+UI-04,Frontend,Username read-only หลังตั้ง,เปิดโปรไฟล์,ช่อง username disabled,TODO,,,ต้องเทส browser
+UI-05,Frontend,Dropdown บทบาทมีให้เลือก,เปิด เพิ่มพนักงาน,4 บทบาท,TODO,,,เพิ่ง seed roles รอ verify
