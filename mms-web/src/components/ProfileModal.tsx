@@ -136,9 +136,19 @@ export function ProfileModal({ onClose }: { onClose: () => void }) {
     (!usernameLocked && username.trim() !== '') ||
     (changingPw && (!!password || !!confirmPassword || !!currentPassword))
 
+  // ปิดด้วย backdrop ได้เฉพาะตอนไม่มีข้อมูลค้าง/ไม่ได้กำลังบันทึก (กันปิดโดยไม่ตั้งใจ)
+  const handleBackdrop = () => {
+    if (loading) return
+    if (isDirty) {
+      setMsg({ type: 'err', text: 'มีข้อมูลที่ยังไม่ได้บันทึก — กด ✕ เพื่อปิดโดยไม่บันทึก' })
+      return
+    }
+    onClose()
+  }
+
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={handleBackdrop}>
       <div
         className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
