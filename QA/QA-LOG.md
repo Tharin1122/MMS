@@ -115,6 +115,17 @@
 - OTP-02/03: ต้องส่ง OTP จริง (เลี่ยงเพราะจะ spam LINE ผู้ใช้ขณะหลับ)
 - LINE-02: login user/pass แล้วเช็คข้อความ LINE (รอผู้ใช้ verify)
 
+## 🆕 รอบเพิ่มฟีเจอร์ (ตามที่ผู้ใช้สั่ง)
+### User detail view (ดูข้อมูล user ครบ)
+- GET /api/user/{id} คืนข้อมูลครบ (username/phone/email/LINE/รหัส/บทบาท/สิทธิ์/บทบาท/lastLogin/createdAt)
+- UI: คลิก user → จัดการ → "📄 ดูข้อมูลทั้งหมด"
+- บั๊กที่เจอ+แก้: perms=0 (ลืม include RolePermissions) + roles ซ้ำ (Owner×3 → dedup) + perms นับซ้ำ 84 (→ distinct code = 42)
+
+### Date-range filter (ช่วงวันที่-เวลา)
+- เพิ่มโหมด "ช่วงวันที่" (datetime-local from→to) ที่ **FinancePage** + **ReportPage**
+- Backend: /report/revenue, /report/summary, /report/therapist-performance, /report/popular-services รับ from/to (Thai local → UTC)
+- Audit: หน้าอื่นที่มีฟิลเตอร์ — Customer ใช้ search (ไม่ต้อง date), Queue เป็น realtime วันนี้ (ไม่ต้อง), Logs ยังไม่ทำ (ควรมี date-range ตอนทำ)
+
 ## Test Run History
 | รอบ | เวลา | ทำอะไร | ผล |
 |-----|------|--------|-----|
