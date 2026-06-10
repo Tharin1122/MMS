@@ -220,14 +220,14 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
     {
         var tenantId = User.GetTenantId();
         var u = await db.Users
-            .Include(x => x.UserRoles).ThenInclude(ur => ur.Role).ThenInclude(r => r.RolePermissions)
+            .Include(x => x.UserRoles).ThenInclude(ur => ur.Role).ThenInclude(r => r.RolePermissions).ThenInclude(rp => rp.Permission)
             .Include(x => x.Branch)
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null);
         if (u == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
 
         var permCount = u.UserRoles
             .SelectMany(ur => ur.Role.RolePermissions)
-            .Select(rp => rp.PermissionId).Distinct().Count();
+            .Select(rp => rp.Permission.Code).Distinct().Count();   // นับ distinct code (กัน permission ซ้ำใน DB)
 
         return Ok(new
         {
