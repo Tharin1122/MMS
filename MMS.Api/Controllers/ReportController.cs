@@ -127,7 +127,9 @@ public class ReportController(AppDbContext db) : ControllerBase
     [RequirePermission(PermissionCodes.ReportView)]
     public async Task<IActionResult> GetTherapistPerformance(
         [FromQuery] int? year,
-        [FromQuery] int? month)
+        [FromQuery] int? month,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
     {
         var tenantId = User.GetTenantId();
         var branchId = User.GetBranchId();
@@ -136,9 +138,18 @@ public class ReportController(AppDbContext db) : ControllerBase
         year ??= now.Year;
         month ??= now.Month;
 
-        var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
-        var fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
-        var toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
+        DateTime fromUtc, toUtc;
+        if (from.HasValue && to.HasValue)
+        {
+            fromUtc = from.Value.AddHours(-7);
+            toUtc = to.Value.AddHours(-7);
+        }
+        else
+        {
+            var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+            fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
+            toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
+        }
 
         // BookingItems
         var bookingItems = await db.BookingItems
@@ -222,6 +233,8 @@ public class ReportController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> GetPopularServices(
         [FromQuery] int? year,
         [FromQuery] int? month,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
         [FromQuery] int top = 10)
     {
         var tenantId = User.GetTenantId();
@@ -231,11 +244,23 @@ public class ReportController(AppDbContext db) : ControllerBase
         year ??= now.Year;
         month ??= now.Month;
 
-        var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
-        var fromDate = new DateOnly(year.Value, month.Value, 1);
-        var toDate = new DateOnly(year.Value, month.Value, daysInMonth);
-        var fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
-        var toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
+        DateOnly fromDate, toDate;
+        DateTime fromUtc, toUtc;
+        if (from.HasValue && to.HasValue)
+        {
+            fromDate = DateOnly.FromDateTime(from.Value);
+            toDate = DateOnly.FromDateTime(to.Value);
+            fromUtc = from.Value.AddHours(-7);
+            toUtc = to.Value.AddHours(-7);
+        }
+        else
+        {
+            var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+            fromDate = new DateOnly(year.Value, month.Value, 1);
+            toDate = new DateOnly(year.Value, month.Value, daysInMonth);
+            fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
+            toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
+        }
 
         // BookingItems
         var bookingItems = await db.BookingItems
@@ -294,7 +319,9 @@ public class ReportController(AppDbContext db) : ControllerBase
     [RequirePermission(PermissionCodes.ReportView)]
     public async Task<IActionResult> GetSummary(
         [FromQuery] int? year,
-        [FromQuery] int? month)
+        [FromQuery] int? month,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to)
     {
         var tenantId = User.GetTenantId();
         var branchId = User.GetBranchId();
@@ -303,11 +330,23 @@ public class ReportController(AppDbContext db) : ControllerBase
         year ??= now.Year;
         month ??= now.Month;
 
-        var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
-        var fromDate = new DateOnly(year.Value, month.Value, 1);
-        var toDate = new DateOnly(year.Value, month.Value, daysInMonth);
-        var fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
-        var toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
+        DateOnly fromDate, toDate;
+        DateTime fromUtc, toUtc;
+        if (from.HasValue && to.HasValue)
+        {
+            fromDate = DateOnly.FromDateTime(from.Value);
+            toDate = DateOnly.FromDateTime(to.Value);
+            fromUtc = from.Value.AddHours(-7);
+            toUtc = to.Value.AddHours(-7);
+        }
+        else
+        {
+            var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
+            fromDate = new DateOnly(year.Value, month.Value, 1);
+            toDate = new DateOnly(year.Value, month.Value, daysInMonth);
+            fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
+            toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
+        }
 
         // Bookings
         var bookings = await db.Bookings

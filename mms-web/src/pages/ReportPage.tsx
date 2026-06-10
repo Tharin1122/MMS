@@ -60,6 +60,11 @@ export default function ReportPage() {
   const [tab, setTab] = useState<Tab>('summary')
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const [mode, setMode] = useState<'month' | 'range'>('month')
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const [fromDt, setFromDt] = useState(`${todayStr}T00:00`)
+  const [toDt, setToDt] = useState(`${todayStr}T23:59`)
   const [loading, setLoading] = useState(false)
 
   const [summary, setSummary] = useState<SummaryReport | null>(null)
@@ -70,7 +75,9 @@ export default function ReportPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const q = `year=${year}&month=${month}`
+      const q = mode === 'range'
+        ? `from=${encodeURIComponent(fromDt)}&to=${encodeURIComponent(toDt)}`
+        : `year=${year}&month=${month}`
       const [s, r, t, p] = await Promise.all([
         api.get(`/report/summary?${q}`),
         api.get(`/report/revenue?${q}&groupBy=day`),
@@ -88,7 +95,9 @@ export default function ReportPage() {
     }
   }
 
-  useEffect(() => { load() }, [year, month])
+  useEffect(() => { if (mode === 'month') load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month, mode])
 
   const tabs: { key: Tab; icon: string; label: string }[] = [
     { key: 'summary', icon: '📋', label: 'สรุป' },
@@ -103,25 +112,28 @@ export default function ReportPage() {
       {/* Header + Filter */}
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-lg font-bold text-gray-800 dark:text-white">📊 รายงาน</h1>
-        <div className="flex gap-2">
-          <select
-            value={month}
-            onChange={e => setMonth(Number(e.target.value))}
-            className={selectClass}
-          >
-            {MONTHS.map((m, i) => (
-              <option key={i + 1} value={i + 1}>{m}</option>
-            ))}
-          </select>
-          <select
-            value={year}
-            onChange={e => setYear(Number(e.target.value))}
-            className={selectClass}
-          >
-            {[2024, 2025, 2026, 2027].map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+            <button onClick={() => setMode('month')} className={`text-xs px-2.5 py-1 rounded-md ${mode === 'month' ? 'bg-white dark:bg-gray-600 shadow-sm font-medium' : 'text-gray-500'}`}>รายเดือน</button>
+            <button onClick={() => setMode('range')} className={`text-xs px-2.5 py-1 rounded-md ${mode === 'range' ? 'bg-white dark:bg-gray-600 shadow-sm font-medium' : 'text-gray-500'}`}>ช่วงวันที่</button>
+          </div>
+          {mode === 'month' ? (
+            <div className="flex gap-2">
+              <select value={month} onChange={e => setMonth(Number(e.target.value))} className={selectClass}>
+                {MONTHS.map((m, i) => (<option key={i + 1} value={i + 1}>{m}</option>))}
+              </select>
+              <select value={year} onChange={e => setYear(Number(e.target.value))} className={selectClass}>
+                {[2024, 2025, 2026, 2027].map(y => (<option key={y} value={y}>{y}</option>))}
+              </select>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <input type="datetime-local" value={fromDt} onChange={e => setFromDt(e.target.value)} className={selectClass} />
+              <span className="text-xs text-gray-400">ถึง</span>
+              <input type="datetime-local" value={toDt} onChange={e => setToDt(e.target.value)} className={selectClass} />
+              <button onClick={load} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg">ค้นหา</button>
+            </div>
+          )}
         </div>
       </div>
 
