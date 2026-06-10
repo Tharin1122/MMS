@@ -141,6 +141,22 @@
 
 เหลือ 🚧: แพ็กเกจ/สต็อก (plan-locked premium), ตั้งค่า, Logs (audit) — ทำต่อได้
 
+## 🖥️ Frontend E2E Test (Claude Preview MCP — รัน dev server จริง)
+| รายการ | ผล |
+|--------|-----|
+| Login user/pass → dashboard | ✅ โหลดจริง (หลังเพิ่ม localhost ใน CORS) |
+| Dashboard render ข้อมูลจริง | ✅ stat cards, donut, RevenuePanel |
+| De-mock verified | ✅ RevenuePanel = "ยังไม่มีรายการชำระเงิน" (ไม่มีกำไรปลอม 79%) |
+| เมนูครบ (4 หน้าใหม่ + ห้องนวด) | ✅ เห็นใน sidebar |
+| คลิก navigate ใน preview | ⚠️ ติด preview viewport=mobile (sidebar overlay) — ไม่ใช่บั๊กโค้ด, ใช้งานได้บน Vercel desktop |
+
+## 🌱 Seeded realistic data (ผ่าน API owner token)
+6 บริการ (นวดไทย/น้ำมัน/เท้า), 4 ห้อง, 3 หมอนวด (มิ้นท์/ฝน/แอม), 4 ลูกค้า — idempotent
+
+## ➕ Dashboard ทำให้ interactive + de-mock (FINDING-09/10)
+- FINDING-09: ปุ่ม dashboard ไม่มี onClick → wire ทุกปุ่มเชื่อมเมนู (สร้างการจอง→booking, quick actions, จัดการคิว→schedule, ดูรายงาน→revenue)
+- FINDING-10: mock data (trend % ปลอม, กำไร 79% ปลอม, fake notifications, fake booked days) → เอาออกหมด เป็นข้อมูลจริงจาก snapshot
+
 ---
 
 ## 🏁 สรุปปิดรอบ QA (สำหรับอ่านตอนตื่น)
