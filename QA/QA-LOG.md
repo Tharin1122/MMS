@@ -126,6 +126,20 @@
 - Backend: /report/revenue, /report/summary, /report/therapist-performance, /report/popular-services รับ from/to (Thai local → UTC)
 - Audit: หน้าอื่นที่มีฟิลเตอร์ — Customer ใช้ search (ไม่ต้อง date), Queue เป็น realtime วันนี้ (ไม่ต้อง), Logs ยังไม่ทำ (ควรมี date-range ตอนทำ)
 
+## 🆕 รอบ UI/UX + UTC (ตามที่ผู้ใช้สั่ง)
+- สถานะหมอนวด: ว่าง/ไม่ว่าง/พัก/ลา/หยุด/ออฟไลน์ (เดิมออนไลน์/ออฟไลน์)
+- หน้าผู้ใช้: คลิกได้ทั้งแถว
+- Time picker: 24 ชม. (date + HH:MM dropdown) เลี่ยง AM/PM
+- ปฏิทิน dashboard: คลิกวันที่ → modal คิว/การจองวันนั้น (DayBookingsModal, /booking?date=)
+- **UTC architecture (verified):** backend เก็บ+ส่ง UTC (Z) ผ่าน UtcDateTimeConverter, SaveChangesAsync ใช้ UtcNow, report from/to รับ UTC; frontend แปลง local→UTC ตอนส่ง (localToUtcIso) + UTC→local ตอนแสดง (toLocaleString)
+  - Verify: lastLoginAt = ...Z ตรงกับ UTC now ✅
+  - หมายเหตุ: data เก่าที่เคยเก็บ ThaiNow จะแสดง +7 (ยอมรับได้ demo), data ใหม่ถูกต้อง
+
+## ⏳ เหลือจาก batch นี้
+- Dashboard stat cards/panels → เด้ง modal ในหน้า (แทน navigate) + ปุ่มไปหน้าหลัก
+- คลิก avatar → modal user ใหญ่
+- Responsive review ทุกจอ
+
 ## Test Run History
 | รอบ | เวลา | ทำอะไร | ผล |
 |-----|------|--------|-----|
