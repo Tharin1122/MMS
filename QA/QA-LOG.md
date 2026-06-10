@@ -43,6 +43,32 @@
 - `SeedDemoTenantAsync` ข้ามทั้ง block ถ้ามี tenant อยู่แล้ว — ตอน setup seed ด้วย SQL มือ ทำให้ therapist demo ไม่เกิด
 - **แก้แล้ว:** seeder idempotent ราย entity (`EnsureDemoUserAsync` เช็คทีละ user)
 
+### FINDING-07 · Severity: HIGH · [FIXED]
+**เมนู "การเงิน" แสดงหน้าห้องนวด (navigation ผิด)**
+- `App.tsx`: `page==='revenue'` → `<RoomManagementPage/>` ผิดสิ้นเชิง (ผู้ใช้รายงานเอง)
+- **แก้แล้ว:** สร้าง `FinancePage` (รายรับเดือนนี้ + แยกวิธีจ่าย + รายวัน ดึง /report/revenue) → revenue ชี้มาที่นี่
+- กู้ RoomManagementPage ที่กำพร้า → เพิ่มเมนู "ห้องนวด" (rooms) ให้เข้าถึงได้
+
+### NAV AUDIT (ตรวจ เมนู → หน้า → ข้อมูล ทั้งหมด)
+| เมนู | หน้าที่แสดง | endpoint | ตรงไหม |
+|------|-----------|----------|--------|
+| แดชบอร์ด | DashboardPage | /dashboard, /dashboard/schedule | ✅ |
+| การจอง & คิวงาน | WalkInPage (รับคิว) | /walk-in | ✅ ใช้ได้ |
+| ตารางงานหมอนวด | QueueMonitorPage (มอนิเตอร์คิว) | /queue | ⚠️ FINDING-08 ป้ายว่า "ตารางงาน" แต่โชว์คิว |
+| ลูกค้า | 🚧 placeholder | - | honest (ยังไม่ทำ) |
+| บริการ & คอร์ส | 🚧 placeholder | - | honest |
+| หมอนวด/พนักงาน | 🚧 placeholder | - | honest |
+| การเงิน | FinancePage | /report/revenue | ✅ แก้แล้ว |
+| ห้องนวด (ใหม่) | RoomManagementPage | /room | ✅ |
+| รายงาน | ReportPage | /report/* | ✅ |
+| สิทธิ์การใช้งาน | UserListPage | /user | ✅ |
+| แพ็กเกจ/สต็อก/ตั้งค่า/logs | 🚧 placeholder | - | honest (plan-locked/ยังไม่ทำ) |
+
+### FINDING-08 · Severity: Low · [OPEN — product decision]
+**"ตารางงานหมอนวด" โชว์ queue monitor ไม่ใช่ตารางเวร**
+- ควรเป็น timeline กะงานหมอนวด (มี TherapistTimeline ใน dashboard อยู่แล้ว) หรือเปลี่ยนชื่อเมนูเป็น "มอนิเตอร์คิว"
+- **แนะนำ:** (ก) เปลี่ยนชื่อเมนู schedule → "คิวเรียลไทม์" ให้ตรงเนื้อหา (ข) สร้างหน้าตารางเวรจริง
+
 ### FINDING-04 · Severity: Medium · [FIXED + VERIFIED]
 **Admin "ตั้งรหัสชั่วคราว" ใช้ไม่ได้กับพนักงานที่เพิ่งสร้าง**
 - **แก้แล้ว:** เพิ่มช่อง username+รหัสชั่วคราว (optional) ตอนสร้างพนักงาน → พนักงาน login user/pass ได้ทันที
