@@ -38,8 +38,8 @@ MMS/
 | ORM | Entity Framework Core |
 | Database | SQL Server (MSSQL) |
 | Auth | LINE Login + JWT Bearer |
-| Realtime | SignalR *(Phase 0 Day 7)* |
-| Background Jobs | Hangfire *(Phase 0 Day 6)* |
+| Realtime | SignalR |
+| Background Jobs | Hangfire |
 | Documentation | Swagger / OpenAPI |
 
 ---
@@ -55,7 +55,7 @@ MMS/
 
 ```bash
 # 1. Clone repo
-git clone https://github.com/YOUR_USERNAME/MMS.git
+git clone https://github.com/Tharin1122/MMS.git
 cd MMS
 
 # 2. Copy config และแก้ค่า connection string
@@ -81,15 +81,17 @@ API จะรันที่ `https://localhost:7xxx` และเปิด Swag
 | Phase | งาน | Mandays | สถานะ |
 |-------|-----|---------|-------|
 | Pre-Dev | PRD, ERD, RBAC Design | ~3 วัน | ✅ เสร็จ |
-| Phase 0 | Foundation (Auth, JWT, Tenant, RBAC) | 8 วัน | 🔵 กำลังทำ (Day 2/8) |
-| Phase 1 | Master Data (Customer, Service, Room, Therapist) | 5 วัน | ⬜ รอ |
-| Phase 2 | Schedule + Availability Engine | 5 วัน | ⬜ รอ |
-| Phase 3 | Booking Engine | 6 วัน | ⬜ รอ |
-| Phase 4 | Walk-In + Queue + Smart Wait | 5 วัน | ⬜ รอ |
-| Phase 5 | Payment Engine | 3 วัน | ⬜ รอ |
-| Phase 6 | Realtime Dashboard | 3 วัน | ⬜ รอ |
-| Phase 7 | Notification (LINE OA) | 2 วัน | ⬜ รอ |
-| Phase 8 | Reports | 4 วัน | ⬜ รอ |
+| Phase 0 | Foundation (Auth, JWT, Tenant, RBAC) | 8 วัน | ✅ เสร็จ |
+| Phase 1 | Master Data (Customer, Service, Room, Therapist) | 5 วัน | ✅ เสร็จ |
+| Phase 2 | Schedule + Availability Engine | 5 วัน | ✅ เสร็จ |
+| Phase 3 | Booking Engine | 6 วัน | ✅ เสร็จ |
+| Phase 4 | Walk-In + Queue + Smart Wait | 5 วัน | ✅ เสร็จ |
+| Phase 5 | Payment Engine | 3 วัน | ✅ เสร็จ |
+| Phase 6 | Realtime Dashboard | 3 วัน | ✅ เสร็จ |
+| Phase 7 | Notification (LINE OA) | 2 วัน | ✅ เสร็จ |
+| Phase 8 | Reports | 4 วัน | ✅ เสร็จ |
+
+> 🎉 **ทุก Phase เสร็จสมบูรณ์แล้ว!** (อัพเดท: 10 มิ.ย. 2026)
 
 ---
 
