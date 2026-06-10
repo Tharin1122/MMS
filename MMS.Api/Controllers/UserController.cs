@@ -220,7 +220,7 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
     {
         var tenantId = User.GetTenantId();
         var u = await db.Users
-            .Include(x => x.UserRoles).ThenInclude(ur => ur.Role)
+            .Include(x => x.UserRoles).ThenInclude(ur => ur.Role).ThenInclude(r => r.RolePermissions)
             .Include(x => x.Branch)
             .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null);
         if (u == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
@@ -243,7 +243,7 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
             u.LastLoginAt,
             u.CreatedAt,
             branch = u.Branch != null ? u.Branch.Name : null,
-            roles = u.UserRoles.Select(ur => ur.Role.Name).Where(n => !n.StartsWith("custom_")).ToList(),
+            roles = u.UserRoles.Select(ur => ur.Role.Name).Where(n => !n.StartsWith("custom_")).Distinct().ToList(),
             permissionCount = permCount,
         });
     }
