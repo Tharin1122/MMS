@@ -101,7 +101,12 @@ export default function TherapistPage() {
   )
 }
 
+interface UserOpt { id: string; displayName: string; hasLine: boolean }
+
 function TherapistForm({ therapist, onClose, onSaved }: { therapist: Therapist | null; onClose: () => void; onSaved: () => void }) {
+  const [fromUser, setFromUser] = useState(false)
+  const [users, setUsers] = useState<UserOpt[]>([])
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [displayName, setDisplayName] = useState(therapist?.displayName ?? '')
   const [code, setCode] = useState(therapist?.code ?? '')
   const [phone, setPhone] = useState(therapist?.phone ?? '')
@@ -110,16 +115,31 @@ function TherapistForm({ therapist, onClose, onSaved }: { therapist: Therapist |
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
 
+  const enableFromUser = async () => {
+    setFromUser(true)
+    if (users.length === 0) {
+      try { setUsers((await api.get('/user')).data) } catch { setErr('โหลดรายชื่อผู้ใช้ไม่สำเร็จ') }
+    }
+  }
+
   const save = async () => {
-    if (!displayName.trim()) { setErr('กรอกชื่อหมอนวด'); return }
     setLoading(true); setErr('')
     try {
-      const body = {
-        displayName: displayName.trim(), code: code.trim() || null, phone: phone.trim() || null,
-        experienceYears: exp ? Number(exp) : null, skillLevel: Number(skill),
+      if (fromUser && !therapist) {
+        if (!selectedUserId) { setErr('เลือกผู้ใช้'); setLoading(false); return }
+        await api.post('/therapist/from-user', {
+          userId: selectedUserId, code: code.trim() || null,
+          experienceYears: exp ? Number(exp) : null, skillLevel: Number(skill),
+        })
+      } else {
+        if (!displayName.trim()) { setErr('กรอกชื่อหมอนวด'); setLoading(false); return }
+        const body = {
+          displayName: displayName.trim(), code: code.trim() || null, phone: phone.trim() || null,
+          experienceYears: exp ? Number(exp) : null, skillLevel: Number(skill),
+        }
+        if (therapist) await api.put(`/therapist/${therapist.id}`, body)
+        else await api.post('/therapist', body)
       }
-      if (therapist) await api.put(`/therapist/${therapist.id}`, body)
-      else await api.post('/therapist', body)
       onSaved()
     } catch (e: any) { setErr(e?.response?.data?.message ?? 'บันทึกไม่สำเร็จ') }
     finally { setLoading(false) }
@@ -133,7 +153,26 @@ function TherapistForm({ therapist, onClose, onSaved }: { therapist: Therapist |
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
         </div>
         <div className="space-y-3">
-          <F label="ชื่อหมอนวด *" value={displayName} onChange={setDisplayName} placeholder="เช่น มิ้นท์" />
+          {!therapist && (
+            <div className="bg-violet-50 dark:bg-violet-900/20 rounded-lg p-2.5">
+              {!fromUser ? (
+                <button onClick={enableFromUser} className="text-xs text-violet-600 dark:text-violet-300 hover:underline">
+                  👥 ดึงจากผู้ใช้ในระบบ (หมอนวดที่มี account login อยู่แล้ว)
+                </button>
+              ) : (
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">เลือกผู้ใช้ *</label>
+                  <select value={selectedUserId} onChange={e => setSelectedUserId(e.target.value)}
+                    className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 dark:text-white">
+                    <option value="">— เลือกผู้ใช้ —</option>
+                    {users.map(u => <option key={u.id} value={u.id}>{u.displayName}{u.hasLine ? ' 🟢' : ''}</option>)}
+                  </select>
+                  <button onClick={() => { setFromUser(false); setSelectedUserId('') }} className="text-xs text-gray-400 mt-1 hover:text-gray-600">← กรอกเองแทน</button>
+                </div>
+              )}
+            </div>
+          )}
+          {!fromUser && <F label="ชื่อหมอนวด *" value={displayName} onChange={setDisplayName} placeholder="เช่น มิ้นท์" />}
           <div className="grid grid-cols-2 gap-3">
             <F label="รหัส" value={code} onChange={setCode} placeholder="เช่น T01" />
             <F label="เบอร์โทร" value={phone} onChange={setPhone} placeholder="08xxxxxxxx" />

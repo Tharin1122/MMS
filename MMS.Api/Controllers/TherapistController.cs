@@ -86,6 +86,39 @@ public class TherapistController(AppDbContext db, IRealtimeService realtime) : C
         return Ok(new { therapist.Id });
     }
 
+    // POST /api/therapist/from-user — สร้างหมอนวดจาก user ที่มีอยู่ (ผูก LINE ให้เห็นคิวตัวเอง)
+    [HttpPost("from-user")]
+    [RequirePermission(PermissionCodes.TherapistCreate)]
+    public async Task<IActionResult> CreateFromUser([FromBody] TherapistFromUserRequest req)
+    {
+        var tenantId = User.GetTenantId();
+        var branchId = User.GetBranchId();
+
+        var user = await db.Users.FirstOrDefaultAsync(u =>
+            u.Id == req.UserId && u.TenantId == tenantId && u.DeletedAt == null);
+        if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+
+        if (!string.IsNullOrEmpty(user.LineUserId) &&
+            await db.Therapists.AnyAsync(t => t.LineUserId == user.LineUserId && t.DeletedAt == null))
+            return BadRequest(new { message = "ผู้ใช้นี้เป็นหมอนวดอยู่แล้ว" });
+
+        var therapist = new Therapist
+        {
+            TenantId = tenantId,
+            BranchId = branchId,
+            DisplayName = user.DisplayName,
+            Phone = user.Phone,
+            LineUserId = user.LineUserId,     // ผูกกับ account → user เห็นคิวตัวเองได้
+            AvatarUrl = user.AvatarUrl,
+            Code = req.Code,
+            ExperienceYears = req.ExperienceYears,
+            SkillLevel = req.SkillLevel,
+        };
+        db.Therapists.Add(therapist);
+        await db.SaveChangesAsync();
+        return Ok(new { therapist.Id, therapist.DisplayName });
+    }
+
     [HttpPut("{id:guid}")]
     [RequirePermission(PermissionCodes.TherapistEdit)]
     public async Task<IActionResult> Update(Guid id, [FromBody] TherapistRequest req)
@@ -341,6 +374,8 @@ public record TherapistRequest(
     SkillLevel? SkillLevel);
 
 public record TherapistStatusRequest(TherapistStatus Status, string? Reason);
+
+public record TherapistFromUserRequest(Guid UserId, string? Code, int? ExperienceYears, SkillLevel? SkillLevel);
 
 public record ScheduleRequest(
     DayOfWeek DayOfWeek,
