@@ -128,6 +128,18 @@
 | 8 | 2026-06-10 | แก้ FINDING-04 + verify (สร้าง user+username+pw → login) | PASS verified end-to-end |
 | 9 | 2026-06-10 | ผู้ใช้รายงาน: เมนูการเงินโชว์ห้องนวด (FINDING-07) | แก้: สร้าง FinancePage + เมนูห้องนวด |
 | 10 | 2026-06-10 | Navigation audit ทุกเมนู + verify dashboard data mapping | เจอ FINDING-08 (schedule label), dashboard map ถูก |
+| 11 | 2026-06-10 | สร้างหน้าใช้งานจริง 4 หน้า + verify API ทุกหน้า | FinancePage, ServicePage, CustomerPage, TherapistPage — ผ่าน |
+
+## 🏗️ Pages Built (autonomous, verified ผ่าน API จริง)
+| เมนู | หน้า | ฟีเจอร์ | verify |
+|------|------|---------|--------|
+| การเงิน | FinancePage | รายรับเดือน/วิธีจ่าย/รายวัน | /report/revenue ✅ |
+| บริการ & คอร์ส | ServicePage | CRUD บริการ + หมวดหมู่ | สร้าง+ลบ verified ✅ |
+| ลูกค้า | CustomerPage | CRUD + ค้นหา (debounce) | สร้าง+ค้นหา+ลบ ✅ |
+| หมอนวด/พนักงาน | TherapistPage | CRUD + เปลี่ยนสถานะ realtime | สร้าง+status+ลบ ✅ |
+| ห้องนวด | RoomManagementPage | (มีอยู่แล้ว) ต่อเมนูใหม่ | /room ✅ |
+
+เหลือ 🚧: แพ็กเกจ/สต็อก (plan-locked premium), ตั้งค่า, Logs (audit) — ทำต่อได้
 
 ---
 

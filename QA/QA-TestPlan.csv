@@ -55,3 +55,7 @@ NAV-ROOM,Navigation,หน้าห้องนวดเข้าถึงได
 NAV-SCHED,Navigation,เมนูตารางงานหมอนวด,ตารางเวร,WARN,โชว์ queue monitor แทน,Low,FINDING-08 product decision
 NAV-DASH,Navigation,Dashboard map ข้อมูลถูก,revenue/monthlyRevenue/bookings,PASS,type+response ตรงกัน,,ไม่มี display bug
 DATA-EMPTY,UX,หน้าจัดการ empty state,แสดงข้อความว่าง ไม่ crash,PASS,Finance/Room/Queue มี empty state,,ข้อมูลจริงยังว่าง (0 payment/room/booking)
+PAGE-FIN,Build,หน้าการเงิน (FinancePage),แสดงรายรับ,PASS,build+API verified,,ใหม่ แทนที่ bug FINDING-07
+PAGE-SVC,Build,หน้าบริการ&คอร์ส (CRUD),สร้าง/แก้/ลบ บริการ+หมวด,PASS,verified: สร้างหมวด+บริการ price=300 → list → ลบ,,หน้าใหม่ใช้งานจริง
+PAGE-CUST,Build,หน้าลูกค้า (CRUD+search),สร้าง/ค้นหา/ลบ,PASS,verified: สร้าง → ค้นหาเจอ → ลบ,,หน้าใหม่ debounce search
+PAGE-THER,Build,หน้าหมอนวด (CRUD+status),สร้าง/แก้/ลบ/เปลี่ยนสถานะ,PASS,verified: สร้าง skill=1 → status→Break → ลบ,,หน้าใหม่ใช้งานจริง
