@@ -126,6 +126,8 @@
 | 6 | 2026-06-10 | Smoke test GET endpoints ทั้งหมด | 13/13 PASS, 0× 500 |
 | 7 | 2026-06-10 | Code review frontend → FINDING-04/05/06 | เจอช่องว่าง onboarding (FINDING-04) |
 | 8 | 2026-06-10 | แก้ FINDING-04 + verify (สร้าง user+username+pw → login) | PASS verified end-to-end |
+| 9 | 2026-06-10 | ผู้ใช้รายงาน: เมนูการเงินโชว์ห้องนวด (FINDING-07) | แก้: สร้าง FinancePage + เมนูห้องนวด |
+| 10 | 2026-06-10 | Navigation audit ทุกเมนู + verify dashboard data mapping | เจอ FINDING-08 (schedule label), dashboard map ถูก |
 
 ---
 

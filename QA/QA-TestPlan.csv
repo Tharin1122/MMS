@@ -50,3 +50,8 @@ EP-RPT3,Endpoint,GET /report/popular-services,200,PASS,object,,
 EP-TML,Endpoint,GET /timeline,200,PASS,object,,
 SMOKE,Endpoint,รวม GET endpoints หา 500,0 errors,PASS,13/13 ไม่มี 500,,backend แข็งแรง ไม่มี server error
 ONBOARD-01,User,สร้าง user พร้อม username+temp pw,login ได้ทันที,PASS,สร้าง+login สำเร็จ (verify FINDING-04 fix),,onboarding ครบโดยไม่ต้องรอ LINE
+NAV-FIN,Navigation,เมนูการเงินแสดงหน้าถูก,FinancePage,FIXED,เดิมโชว์ RoomManagement (FINDING-07),High,แก้แล้ว: สร้าง FinancePage ดึง /report/revenue
+NAV-ROOM,Navigation,หน้าห้องนวดเข้าถึงได้,RoomManagement,PASS,เพิ่มเมนู ห้องนวด,,กู้หน้ากำพร้า
+NAV-SCHED,Navigation,เมนูตารางงานหมอนวด,ตารางเวร,WARN,โชว์ queue monitor แทน,Low,FINDING-08 product decision
+NAV-DASH,Navigation,Dashboard map ข้อมูลถูก,revenue/monthlyRevenue/bookings,PASS,type+response ตรงกัน,,ไม่มี display bug
+DATA-EMPTY,UX,หน้าจัดการ empty state,แสดงข้อความว่าง ไม่ crash,PASS,Finance/Room/Queue มี empty state,,ข้อมูลจริงยังว่าง (0 payment/room/booking)
