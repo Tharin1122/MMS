@@ -39,8 +39,8 @@ public class ReportController(AppDbContext db) : ControllerBase
         DateTime fromUtc, toUtc;
         if (from.HasValue && to.HasValue)
         {
-            fromUtc = from.Value.AddHours(-7);   // Thai local → UTC
-            toUtc = to.Value.AddHours(-7);
+            fromUtc = from.Value.ToUniversalTime();   // frontend ส่ง UTC มาแล้ว
+            toUtc = to.Value.ToUniversalTime();
         }
         else if (groupBy == "month")
         {
@@ -141,8 +141,8 @@ public class ReportController(AppDbContext db) : ControllerBase
         DateTime fromUtc, toUtc;
         if (from.HasValue && to.HasValue)
         {
-            fromUtc = from.Value.AddHours(-7);
-            toUtc = to.Value.AddHours(-7);
+            fromUtc = from.Value.ToUniversalTime();   // frontend ส่ง UTC มาแล้ว
+            toUtc = to.Value.ToUniversalTime();
         }
         else
         {
@@ -250,8 +250,8 @@ public class ReportController(AppDbContext db) : ControllerBase
         {
             fromDate = DateOnly.FromDateTime(from.Value);
             toDate = DateOnly.FromDateTime(to.Value);
-            fromUtc = from.Value.AddHours(-7);
-            toUtc = to.Value.AddHours(-7);
+            fromUtc = from.Value.ToUniversalTime();   // frontend ส่ง UTC มาแล้ว
+            toUtc = to.Value.ToUniversalTime();
         }
         else
         {
@@ -336,8 +336,8 @@ public class ReportController(AppDbContext db) : ControllerBase
         {
             fromDate = DateOnly.FromDateTime(from.Value);
             toDate = DateOnly.FromDateTime(to.Value);
-            fromUtc = from.Value.AddHours(-7);
-            toUtc = to.Value.AddHours(-7);
+            fromUtc = from.Value.ToUniversalTime();   // frontend ส่ง UTC มาแล้ว
+            toUtc = to.Value.ToUniversalTime();
         }
         else
         {

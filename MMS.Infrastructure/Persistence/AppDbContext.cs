@@ -66,24 +66,14 @@ public class AppDbContext(
     {
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
-            //if (entry.State == EntityState.Added)
-            //    entry.Entity.CreatedAt = DateTime.UtcNow;
-
-            //if (entry.State == EntityState.Modified)
-            //    entry.Entity.UpdatedAt = DateTime.UtcNow;
-
+            // เก็บเป็น UTC เสมอ → frontend แปลงเป็นเวลาท้องถิ่นตอนแสดง
             if (entry.State == EntityState.Added)
-                entry.Entity.CreatedAt = ThaiNow;   // เปลี่ยนจาก DateTime.UtcNow
+                entry.Entity.CreatedAt = DateTime.UtcNow;
 
             if (entry.State == EntityState.Modified)
-                entry.Entity.UpdatedAt = ThaiNow;   // เปลี่ยนจาก DateTime.UtcNow
+                entry.Entity.UpdatedAt = DateTime.UtcNow;
         }
 
         return base.SaveChangesAsync(cancellationToken);
     }
-
-    private static DateTime ThaiNow =>
-        TimeZoneInfo.ConvertTimeFromUtc(
-            DateTime.UtcNow,
-            TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
 }

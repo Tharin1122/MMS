@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
-import { DateTimePicker } from '../components/DateTimePicker'
+import { DateTimePicker, localToUtcIso } from '../components/DateTimePicker'
 
 interface RevenueSeries { period: string; label: string; revenue: number; receipts: number; discount: number }
 interface ByMethod { method: string; amount: number; count: number }
@@ -31,7 +31,7 @@ export default function FinancePage() {
   const fetchData = () => {
     setLoading(true); setError('')
     const url = mode === 'range'
-      ? `/report/revenue?from=${encodeURIComponent(fromDt)}&to=${encodeURIComponent(toDt)}&groupBy=day`
+      ? `/report/revenue?from=${encodeURIComponent(localToUtcIso(fromDt))}&to=${encodeURIComponent(localToUtcIso(toDt))}&groupBy=day`
       : `/report/revenue?year=${year}&month=${month}&groupBy=day`
     api.get(url)
       .then(res => setData(res.data))

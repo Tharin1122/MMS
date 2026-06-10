@@ -1,3 +1,10 @@
+// แปลงเวลาท้องถิ่น "YYYY-MM-DDTHH:mm" → UTC ISO (มี Z) สำหรับส่งไป backend
+export const localToUtcIso = (local: string) => {
+  if (!local) return ''
+  const d = new Date(local)   // parse เป็นเวลาท้องถิ่นของ browser
+  return isNaN(d.getTime()) ? local : d.toISOString()
+}
+
 // Date + 24h time picker (กัน AM/PM) — value = "YYYY-MM-DDTHH:mm"
 export function DateTimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [datePart, timePart] = (value || 'T00:00').split('T')

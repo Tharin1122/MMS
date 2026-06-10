@@ -37,8 +37,13 @@ static string NormalizeConnectionString(string? cs)
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
+    {
         options.JsonSerializerOptions.ReferenceHandler =
-            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles);
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        // ส่งเวลาออกเป็น UTC ISO (Z) เสมอ → frontend แปลงเป็นเวลาท้องถิ่น
+        options.JsonSerializerOptions.Converters.Add(new MMS.Api.Json.UtcDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new MMS.Api.Json.UtcNullableDateTimeConverter());
+    });
 
 builder.Services.AddEndpointsApiExplorer();
 

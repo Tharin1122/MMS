@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
-import { DateTimePicker } from '../components/DateTimePicker'
+import { DateTimePicker, localToUtcIso } from '../components/DateTimePicker'
 
 // ── Types ──────────────────────────────────────────
 interface RevenueSummary {
@@ -77,7 +77,7 @@ export default function ReportPage() {
     setLoading(true)
     try {
       const q = mode === 'range'
-        ? `from=${encodeURIComponent(fromDt)}&to=${encodeURIComponent(toDt)}`
+        ? `from=${encodeURIComponent(localToUtcIso(fromDt))}&to=${encodeURIComponent(localToUtcIso(toDt))}`
         : `year=${year}&month=${month}`
       const [s, r, t, p] = await Promise.all([
         api.get(`/report/summary?${q}`),
