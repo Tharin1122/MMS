@@ -213,6 +213,41 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
     /// <summary>
     /// GET /api/user/{id}/permissions — ดู permission ของ user
     /// </summary>
+    // GET /api/user/{id} — ข้อมูล user ครบทุกอย่าง
+    [HttpGet("{id:guid}")]
+    [RequirePermission(PermissionCodes.UserView)]
+    public async Task<IActionResult> GetById(Guid id)
+    {
+        var tenantId = User.GetTenantId();
+        var u = await db.Users
+            .Include(x => x.UserRoles).ThenInclude(ur => ur.Role)
+            .Include(x => x.Branch)
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == tenantId && x.DeletedAt == null);
+        if (u == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+
+        var permCount = u.UserRoles
+            .SelectMany(ur => ur.Role.RolePermissions)
+            .Select(rp => rp.PermissionId).Distinct().Count();
+
+        return Ok(new
+        {
+            u.Id,
+            u.DisplayName,
+            u.Username,
+            u.Phone,
+            u.Email,
+            u.AvatarUrl,
+            hasLine = !string.IsNullOrEmpty(u.LineUserId),
+            hasPassword = !string.IsNullOrEmpty(u.PasswordHash),
+            u.IsActive,
+            u.LastLoginAt,
+            u.CreatedAt,
+            branch = u.Branch != null ? u.Branch.Name : null,
+            roles = u.UserRoles.Select(ur => ur.Role.Name).Where(n => !n.StartsWith("custom_")).ToList(),
+            permissionCount = permCount,
+        });
+    }
+
     [HttpGet("{id:guid}/permissions")]
     [RequirePermission(PermissionCodes.UserView)]
     public async Task<IActionResult> GetUserPermissions(Guid id)

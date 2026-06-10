@@ -20,10 +20,17 @@ interface Props {
 }
 
 export function UserActionsModal({ user, canManage, onClose, onChanged, onManagePerms, onLinkLine }: Props) {
-  const [mode, setMode] = useState<'menu' | 'reset' | 'delete'>('menu')
+  const [mode, setMode] = useState<'menu' | 'reset' | 'delete' | 'detail'>('menu')
   const [tempPw, setTempPw] = useState('')
   const [loading, setLoading] = useState(false)
+  const [detail, setDetail] = useState<any | null>(null)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
+  const openDetail = async () => {
+    setMode('detail'); setDetail(null)
+    try { setDetail((await api.get(`/user/${user.id}`)).data) }
+    catch { setDetail({ error: true }) }
+  }
 
   const run = async (fn: () => Promise<any>, okText: string) => {
     setLoading(true); setMsg(null)
@@ -61,6 +68,7 @@ export function UserActionsModal({ user, canManage, onClose, onChanged, onManage
 
         {mode === 'menu' && (
           <div className="space-y-2">
+            <ActionBtn onClick={openDetail} icon="📄">ดูข้อมูลทั้งหมด</ActionBtn>
             <ActionBtn onClick={onManagePerms} icon="🔑">{canManage ? 'จัดการสิทธิ์' : 'ดูสิทธิ์'}</ActionBtn>
             {canManage && <ActionBtn onClick={onLinkLine} icon="🟢">{user.hasLine ? 'เปลี่ยน LINE ที่ผูก' : 'สร้าง QR ผูก LINE'}</ActionBtn>}
             {canManage && <ActionBtn onClick={() => setMode('reset')} icon="🔄">รีเซ็ต/ตั้งรหัสผ่าน</ActionBtn>}
@@ -99,8 +107,43 @@ export function UserActionsModal({ user, canManage, onClose, onChanged, onManage
           </div>
         )}
 
+        {mode === 'detail' && (
+          <div>
+            {!detail ? (
+              <p className="text-sm text-gray-400 text-center py-6">กำลังโหลด...</p>
+            ) : detail.error ? (
+              <p className="text-sm text-red-500 text-center py-6">โหลดข้อมูลไม่สำเร็จ</p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                <Row label="ชื่อที่แสดง" value={detail.displayName} />
+                <Row label="ชื่อผู้ใช้ (login)" value={detail.username ?? '— ยังไม่ตั้ง —'} />
+                <Row label="เบอร์โทร" value={detail.phone ?? '—'} />
+                <Row label="อีเมล" value={detail.email ?? '—'} />
+                <Row label="บทบาท" value={(detail.roles ?? []).join(', ') || 'ไม่มี'} />
+                <Row label="จำนวนสิทธิ์" value={`${detail.permissionCount} สิทธิ์`} />
+                <Row label="สาขา" value={detail.branch ?? '—'} />
+                <Row label="ผูก LINE" value={detail.hasLine ? '🟢 ผูกแล้ว' : '⚪ ยังไม่ผูก'} />
+                <Row label="ตั้งรหัสผ่าน" value={detail.hasPassword ? '✅ ตั้งแล้ว' : '❌ ยังไม่ตั้ง'} />
+                <Row label="สถานะ" value={detail.isActive ? '🟢 ใช้งาน' : '🔴 ถูกบล็อก'} />
+                <Row label="เข้าระบบล่าสุด" value={detail.lastLoginAt ? new Date(detail.lastLoginAt).toLocaleString('th-TH') : 'ยังไม่เคย'} />
+                <Row label="สร้างเมื่อ" value={detail.createdAt ? new Date(detail.createdAt).toLocaleDateString('th-TH') : '—'} />
+              </div>
+            )}
+            <button onClick={() => setMode('menu')} className="w-full mt-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 text-sm rounded-lg">← กลับ</button>
+          </div>
+        )}
+
         {msg && <p className={`text-xs mt-3 text-center ${msg.type === 'ok' ? 'text-emerald-600' : 'text-red-500'}`}>{msg.text}</p>}
       </div>
+    </div>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-3 py-1.5 border-b border-gray-50 dark:border-gray-700">
+      <span className="text-gray-400 flex-shrink-0">{label}</span>
+      <span className="text-gray-800 dark:text-gray-100 text-right">{value}</span>
     </div>
   )
 }

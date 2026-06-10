@@ -16,19 +16,31 @@ const baht = (n: number) => n.toLocaleString('th-TH', { minimumFractionDigits: 0
 
 export default function FinancePage() {
   const now = new Date()
+  const [mode, setMode] = useState<'month' | 'range'>('month')
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const todayStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+  const [fromDt, setFromDt] = useState(`${todayStr}T00:00`)
+  const [toDt, setToDt] = useState(`${todayStr}T23:59`)
   const [data, setData] = useState<RevenueData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
+  const fetchData = () => {
     setLoading(true); setError('')
-    api.get(`/report/revenue?year=${year}&month=${month}&groupBy=day`)
+    const url = mode === 'range'
+      ? `/report/revenue?from=${encodeURIComponent(fromDt)}&to=${encodeURIComponent(toDt)}&groupBy=day`
+      : `/report/revenue?year=${year}&month=${month}&groupBy=day`
+    api.get(url)
       .then(res => setData(res.data))
       .catch(err => setError(err?.response?.data?.message ?? 'โหลดข้อมูลการเงินไม่สำเร็จ'))
       .finally(() => setLoading(false))
-  }, [year, month])
+  }
+
+  useEffect(() => { if (mode === 'month') fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month, mode])
 
   const thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
   const maxRev = data?.series.length ? Math.max(...data.series.map(s => s.revenue)) : 0
@@ -37,6 +49,16 @@ export default function FinancePage() {
     <div className="p-4 space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h1 className="text-lg font-bold dark:text-white">💰 การเงิน</h1>
+        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+          <button onClick={() => setMode('month')}
+            className={`text-xs px-3 py-1 rounded-md transition ${mode === 'month' ? 'bg-white dark:bg-gray-600 shadow-sm font-medium' : 'text-gray-500'}`}>รายเดือน</button>
+          <button onClick={() => setMode('range')}
+            className={`text-xs px-3 py-1 rounded-md transition ${mode === 'range' ? 'bg-white dark:bg-gray-600 shadow-sm font-medium' : 'text-gray-500'}`}>ช่วงวันที่</button>
+        </div>
+      </div>
+
+      {/* Filter controls */}
+      {mode === 'month' ? (
         <div className="flex gap-2">
           <select value={month} onChange={e => setMonth(Number(e.target.value))}
             className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white">
@@ -47,7 +69,21 @@ export default function FinancePage() {
             {[0, 1, 2].map(d => { const y = now.getFullYear() - d; return <option key={y} value={y}>{y + 543}</option> })}
           </select>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm flex flex-wrap items-end gap-2">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">ตั้งแต่</label>
+            <input type="datetime-local" value={fromDt} onChange={e => setFromDt(e.target.value)}
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white" />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">ถึง</label>
+            <input type="datetime-local" value={toDt} onChange={e => setToDt(e.target.value)}
+              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white" />
+          </div>
+          <button onClick={fetchData} className="px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm rounded-lg transition">ค้นหา</button>
+        </div>
+      )}
 
       {loading && <p className="text-sm text-gray-400 text-center py-10">กำลังโหลด...</p>}
       {error && <p className="text-sm text-red-500 text-center py-10">{error}</p>}

@@ -24,6 +24,8 @@ public class ReportController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> GetRevenue(
         [FromQuery] int? year,
         [FromQuery] int? month,
+        [FromQuery] DateTime? from,   // ช่วงวันที่-เวลา (Thai local) — มีก่อน year/month
+        [FromQuery] DateTime? to,
         [FromQuery] string groupBy = "day") // day | month
     {
         var tenantId = User.GetTenantId();
@@ -33,17 +35,20 @@ public class ReportController(AppDbContext db) : ControllerBase
         year ??= now.Year;
         month ??= now.Month;
 
-        // กำหนด date range
+        // กำหนด date range — ถ้าส่ง from/to มา ใช้อันนั้นก่อน (custom range)
         DateTime fromUtc, toUtc;
-        if (groupBy == "month")
+        if (from.HasValue && to.HasValue)
         {
-            // ทั้งปี
+            fromUtc = from.Value.AddHours(-7);   // Thai local → UTC
+            toUtc = to.Value.AddHours(-7);
+        }
+        else if (groupBy == "month")
+        {
             fromUtc = new DateTime(year.Value, 1, 1).AddHours(-7);
             toUtc = new DateTime(year.Value, 12, 31, 23, 59, 59).AddHours(-7);
         }
         else
         {
-            // ทั้งเดือน
             var daysInMonth = DateTime.DaysInMonth(year.Value, month.Value);
             fromUtc = new DateTime(year.Value, month.Value, 1).AddHours(-7);
             toUtc = new DateTime(year.Value, month.Value, daysInMonth, 23, 59, 59).AddHours(-7);
