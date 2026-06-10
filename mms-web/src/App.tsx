@@ -135,7 +135,7 @@ function AppContent() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopBar onMenuToggle={() => setSidebarOpen(o => !o)} isMobile={isMobile} onProfileClick={() => setShowProfile(true)} />
         <main className="flex-1 overflow-y-auto">
-          {page === 'dashboard' && <DashboardPage />}
+          {page === 'dashboard' && <DashboardPage onNavigate={navigate} />}
           {page === 'booking'   && <WalkInPage />}
           {page === 'schedule'  && <QueueMonitorPage />}
           {page === 'roles'     && !selectedUserId && (

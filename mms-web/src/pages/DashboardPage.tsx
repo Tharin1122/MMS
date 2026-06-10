@@ -7,6 +7,7 @@ import { DonutChart } from '../components/charts/DonutChart'
 import { TherapistTimeline } from '../components/TherapistTimeline'
 import { PlanGate } from '../components/plan/PlanGate'
 import type { DashboardSnapshot, QueueItem } from '../types/dashboard'
+import type { Page } from '../components/layout/Sidebar'
 
 // ────────────────────────────────────────────────────────────
 // Sub-components
@@ -89,28 +90,30 @@ function BookingOverview({ snap }: { snap: DashboardSnapshot }) {
   )
 }
 
-// Revenue summary table
-function RevenuePanel({ snap }: { snap: DashboardSnapshot }) {
+// Revenue summary table (ข้อมูลจริงจาก DB เท่านั้น)
+function RevenuePanel({ snap, onNavigate }: { snap: DashboardSnapshot; onNavigate: (p: Page) => void }) {
   const { revenue, monthlyRevenue } = snap
-  const profit = monthlyRevenue.totalRevenue * 0.79  // mock: ~21% expense ratio
 
   const methodLabel: Record<string, string> = {
-    Cash: 'เงินสด', Transfer: 'โอนเงิน', QR: 'QR / พร้อมเพย์', Card: 'บัตรเครดิต',
+    Cash: 'เงินสด', Transfer: 'โอนเงิน', QR: 'QR / พร้อมเพย์', PromptPay: 'พร้อมเพย์', Card: 'บัตรเครดิต',
   }
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-700">รายรับ – รายจ่าย (เดือนนี้)</h3>
+        <h3 className="text-sm font-semibold text-gray-700">รายรับ (เดือนนี้)</h3>
       </div>
       <table className="w-full text-xs">
         <thead>
           <tr className="text-gray-400 border-b border-gray-100">
-            <th className="text-left pb-2 font-normal">รายการ</th>
+            <th className="text-left pb-2 font-normal">วิธีชำระ</th>
             <th className="text-right pb-2 font-normal">จำนวนเงิน (บาท)</th>
           </tr>
         </thead>
         <tbody>
+          {revenue.byMethod.length === 0 && (
+            <tr><td colSpan={2} className="py-3 text-center text-gray-400">ยังไม่มีรายการชำระเงิน</td></tr>
+          )}
           {revenue.byMethod.map(m => (
             <tr key={m.method} className="border-b border-gray-50">
               <td className="py-1.5 text-gray-600">{methodLabel[m.method] ?? m.method}</td>
@@ -118,20 +121,16 @@ function RevenuePanel({ snap }: { snap: DashboardSnapshot }) {
             </tr>
           ))}
           <tr className="border-b border-gray-100 font-medium">
-            <td className="py-2 text-gray-700">รายรับรวม</td>
+            <td className="py-2 text-gray-700">รายรับรวมเดือนนี้</td>
             <td className="py-2 text-right text-gray-900">{monthlyRevenue.totalRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
           </tr>
-          <tr className="border-b border-gray-100">
-            <td className="py-1.5 text-gray-500">รายจ่ายรวม</td>
-            <td className="py-1.5 text-right text-red-500">{(monthlyRevenue.totalRevenue - profit).toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
-          </tr>
           <tr>
-            <td className="pt-2 font-semibold text-gray-700">กำไรสุทธิ</td>
-            <td className="pt-2 text-right font-bold text-violet-600">{profit.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td>
+            <td className="pt-2 text-gray-500">จำนวนบิล</td>
+            <td className="pt-2 text-right text-gray-700">{monthlyRevenue.totalReceipts}</td>
           </tr>
         </tbody>
       </table>
-      <button className="mt-3 w-full text-xs text-violet-600 hover:text-violet-800 transition">
+      <button onClick={() => onNavigate('revenue')} className="mt-3 w-full text-xs text-violet-600 hover:text-violet-800 transition">
         ดูรายงานการเงิน →
       </button>
     </div>
@@ -139,7 +138,7 @@ function RevenuePanel({ snap }: { snap: DashboardSnapshot }) {
 }
 
 // Queue panel (right sidebar)
-function QueuePanel({ snap }: { snap: DashboardSnapshot }) {
+function QueuePanel({ snap, onNavigate }: { snap: DashboardSnapshot; onNavigate: (p: Page) => void }) {
   const waiting = snap.queue.waitingList
   const inService = snap.queue.inServiceList
 
@@ -196,7 +195,7 @@ function QueuePanel({ snap }: { snap: DashboardSnapshot }) {
         )}
       </div>
       <div className="px-4 py-2 border-t border-gray-100">
-        <button className="w-full bg-violet-600 hover:bg-violet-700 text-white text-xs py-2 rounded-lg transition">
+        <button onClick={() => onNavigate('schedule')} className="w-full bg-violet-600 hover:bg-violet-700 text-white text-xs py-2 rounded-lg transition">
           จัดการคิวทั้งหมด
         </button>
       </div>
@@ -215,8 +214,8 @@ function MiniCalendar({ snap: _snap }: { snap: DashboardSnapshot }) {
   const thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
   const days = ['อา','จ','อ','พ','พฤ','ศ','ส']
 
-  // days that have bookings (mock: today + a few)
-  const bookedDays = new Set([today, today + 2, today + 5].filter(d => d <= daysInMonth))
+  // ไม่มีข้อมูลการจองรายวันใน snapshot → ไฮไลต์เฉพาะวันนี้ (ไม่ mock)
+  const bookedDays = new Set<number>()
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -254,26 +253,27 @@ function MiniCalendar({ snap: _snap }: { snap: DashboardSnapshot }) {
   )
 }
 
-// Notification list
+// Notification list — สรุปสถานะจริงจาก snapshot (ไม่ mock)
 function NotificationPanel({ snap }: { snap: DashboardSnapshot }) {
-  const notifs = [
-    { color: 'bg-green-400', text: snap.queue.inServiceList[0] ? `${snap.queue.inServiceList[0].customer.displayName} เช็คอินแล้ว` : 'ระบบเริ่มต้นแล้ว', time: 'เมื่อกี้', type: 'success' },
-    { color: 'bg-orange-400', text: 'ตรวจสอบคิวใหม่', time: 'เมื่อกี้', type: 'warning' },
-    { color: 'bg-red-400',   text: 'สต็อกน้ำมันนวดใกล้หมด', time: 'เมื่อวาน', type: 'error' },
-  ]
+  const notifs: { color: string; text: string }[] = []
+  if (snap.queue.waiting > 0) notifs.push({ color: 'bg-orange-400', text: `มีลูกค้ารอคิว ${snap.queue.waiting} คน` })
+  if (snap.queue.inService > 0) notifs.push({ color: 'bg-green-400', text: `กำลังให้บริการ ${snap.queue.inService} คิว` })
+  if (snap.rooms.cleaning > 0) notifs.push({ color: 'bg-blue-400', text: `ห้องรอทำความสะอาด ${snap.rooms.cleaning} ห้อง` })
+  if (snap.therapists.available > 0) notifs.push({ color: 'bg-emerald-400', text: `หมอนวดว่าง ${snap.therapists.available} คน` })
+  if (snap.bookings.pending > 0) notifs.push({ color: 'bg-violet-400', text: `การจองรอยืนยัน ${snap.bookings.pending} รายการ` })
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <h3 className="text-sm font-semibold text-gray-700">การแจ้งเตือน</h3>
-        <button className="text-xs text-violet-500 hover:text-violet-700">ดูทั้งหมด</button>
+        <h3 className="text-sm font-semibold text-gray-700">สถานะร้าน</h3>
       </div>
       <div className="divide-y divide-gray-50">
-        {notifs.map((n, i) => (
+        {notifs.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-4">ทุกอย่างเรียบร้อย ไม่มีคิวค้าง</p>
+        ) : notifs.map((n, i) => (
           <div key={i} className="flex items-center gap-3 px-4 py-2.5">
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${n.color}`} />
             <p className="text-xs text-gray-700 flex-1">{n.text}</p>
-            <span className="text-xs text-gray-400 flex-shrink-0">{n.time}</span>
           </div>
         ))}
       </div>
@@ -285,7 +285,7 @@ function NotificationPanel({ snap }: { snap: DashboardSnapshot }) {
 // Main Page
 // ────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+export default function DashboardPage({ onNavigate }: { onNavigate: (page: Page) => void }) {
   const { snapshot, isLoading, setSnapshot, setLoading } = useDashboardStore()
   const { connection } = useSignalRContext()
   const [scheduleKey, setScheduleKey] = useState(0)
@@ -361,7 +361,9 @@ export default function DashboardPage() {
           >
             ↺ รีเฟรช
           </button>
-          <button className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg transition">
+          <button
+            onClick={() => onNavigate('booking')}
+            className="flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-700 text-white px-3 py-1.5 rounded-lg transition">
             + สร้างการจอง
           </button>
         </div>
@@ -374,7 +376,6 @@ export default function DashboardPage() {
           label="รายรับวันนี้"
           value={`${snap.revenue.totalRevenue.toLocaleString('th-TH')} บาท`}
           sub={`จาก ${snap.revenue.totalReceipts} การจอง`}
-          trend="+12.5%"
           color="bg-violet-500"
         />
         <StatCard
@@ -382,15 +383,13 @@ export default function DashboardPage() {
           label="รายรับเดือนนี้"
           value={`${snap.monthlyRevenue.totalRevenue.toLocaleString('th-TH')} บาท`}
           sub={`จาก ${snap.monthlyRevenue.totalReceipts} การจอง`}
-          trend="+8.3%"
           color="bg-green-500"
         />
         <StatCard
           icon={<span className="text-white text-xl">👥</span>}
           label="ลูกค้าวันนี้"
           value={`${snap.queue.totalToday} คน`}
-          sub={`ลูกค้าใหม่ ${snap.queue.waiting} คน`}
-          trend="+9.1%"
+          sub={`รอคิว ${snap.queue.waiting} คน`}
           color="bg-orange-400"
         />
         <StatCard
@@ -409,7 +408,7 @@ export default function DashboardPage() {
           <BookingOverview snap={snap} />
         </div>
         <div>
-          <RevenuePanel snap={snap} />
+          <RevenuePanel snap={snap} onNavigate={onNavigate} />
         </div>
       </div>
 
@@ -419,7 +418,7 @@ export default function DashboardPage() {
           <TherapistTimeline refreshKey={scheduleKey} />
         </div>
         <div className="space-y-4">
-          <QueuePanel snap={snap} />
+          <QueuePanel snap={snap} onNavigate={onNavigate} />
           <MiniCalendar snap={snap} />
           <PlanGate required="Basic" currentPlan={planType} mode="blur">
             <NotificationPanel snap={snap} />
@@ -429,15 +428,16 @@ export default function DashboardPage() {
 
       {/* Bottom quick actions */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-        {[
-          { icon: '📋', label: 'สร้างการจอง',   sub: 'เพิ่มการจองใหม่' },
-          { icon: '👤', label: 'ลูกค้าใหม่',    sub: 'เพิ่มลูกค้า' },
-          { icon: '🎫', label: 'จัดการคิว',     sub: 'คิวรอ / กำลังบริการ' },
-          { icon: '💵', label: 'รายงานการเงิน', sub: 'รายรับ – รายจ่าย' },
-          { icon: '⚙️', label: 'ตั้งค่าระบบ',  sub: 'ตั้งค่าทั่วไป' },
-        ].map(a => (
+        {([
+          { icon: '📋', label: 'สร้างการจอง',   sub: 'เพิ่มการจองใหม่', page: 'booking' },
+          { icon: '👤', label: 'ลูกค้าใหม่',    sub: 'เพิ่มลูกค้า',      page: 'customer' },
+          { icon: '🎫', label: 'จัดการคิว',     sub: 'คิวรอ / กำลังบริการ', page: 'schedule' },
+          { icon: '💵', label: 'รายงานการเงิน', sub: 'รายรับ – รายจ่าย', page: 'revenue' },
+          { icon: '🧑‍⚕️', label: 'หมอนวด',      sub: 'จัดการพนักงาน',    page: 'therapist' },
+        ] as { icon: string; label: string; sub: string; page: Page }[]).map(a => (
           <button
             key={a.label}
+            onClick={() => onNavigate(a.page)}
             className="bg-white rounded-xl border border-gray-100 p-3 text-left hover:border-violet-300 hover:shadow-sm transition shadow-sm"
           >
             <div className="text-2xl mb-1">{a.icon}</div>
