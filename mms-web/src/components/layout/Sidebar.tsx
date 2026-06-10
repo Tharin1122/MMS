@@ -3,7 +3,7 @@ import { useAuthStore } from '../../store/authStore'
 
 export type Page =
   | 'dashboard' | 'booking' | 'schedule' | 'customer'
-  | 'service' | 'therapist' | 'revenue' | 'promotion'
+  | 'service' | 'therapist' | 'revenue' | 'rooms' | 'promotion'
   | 'stock' | 'roles' | 'settings' | 'report' | 'logs'
 
 interface NavItem {
@@ -21,12 +21,8 @@ const navItems: NavItem[] = [
   { key: 'customer',   icon: '👤', label: t('nav.customer') },
   { key: 'service',    icon: '💆', label: t('nav.service') },
   { key: 'therapist',  icon: '🧑‍⚕️', label: t('nav.therapist') },
-  {
-    key: 'revenue', icon: '💰', label: t('nav.finance'),
-    children: [
-      { key: 'revenue', label: t('nav.revenue') },
-    ]
-  },
+  { key: 'revenue', icon: '💰', label: t('nav.finance') },
+  { key: 'rooms',    icon: '🚪', label: t('nav.rooms') },
   { key: 'promotion',  icon: '🎁', label: t('nav.promotion'), planRequired: 'shop' },
   { key: 'stock',      icon: '📦', label: t('nav.stock'),      planRequired: 'shop' },
   { key: 'roles',      icon: '🔑', label: t('nav.roles') },

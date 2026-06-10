@@ -15,6 +15,7 @@ export const th = {
   'nav.therapist': 'หมอนวด / พนักงาน',
   'nav.finance': 'การเงิน',
   'nav.revenue': 'รายรับ – รายจ่าย',
+  'nav.rooms': 'ห้องนวด',
   'nav.promotion': 'แพ็กเกจ & โปรโมชั่น',
   'nav.stock': 'สต็อกสินค้า',
   'nav.roles': 'สิทธิ์การใช้งาน',

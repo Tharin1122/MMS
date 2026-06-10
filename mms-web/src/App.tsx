@@ -10,6 +10,7 @@ import WalkInPage from './pages/WalkInPage'
 import QueueMonitorPage from './pages/QueueMonitorPage'
 import ReportPage from './pages/ReportPage'
 import RoomManagementPage from './pages/RoomManagementPage'
+import FinancePage from './pages/FinancePage'
 import UserListPage from './pages/UserListPage'
 import UserPermissionsPage from './pages/UserPermissionsPage'
 import { useDashboardStore } from './store/dashboardStore'
@@ -150,7 +151,8 @@ function AppContent() {
             />
           )}
           {page === 'report'   && <ReportPage />}
-          {page === 'revenue'  && <RoomManagementPage />}
+          {page === 'revenue'  && <FinancePage />}
+          {page === 'rooms'    && <RoomManagementPage />}
           {/* pages ที่ยังไม่มี component */}
           {['customer','service','therapist','promotion','stock','settings','logs'].includes(page) && (
             <div className="flex items-center justify-center h-64">
