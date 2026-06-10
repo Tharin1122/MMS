@@ -13,6 +13,7 @@ import RoomManagementPage from './pages/RoomManagementPage'
 import FinancePage from './pages/FinancePage'
 import ServicePage from './pages/ServicePage'
 import CustomerPage from './pages/CustomerPage'
+import TherapistPage from './pages/TherapistPage'
 import UserListPage from './pages/UserListPage'
 import UserPermissionsPage from './pages/UserPermissionsPage'
 import { useDashboardStore } from './store/dashboardStore'
@@ -157,8 +158,9 @@ function AppContent() {
           {page === 'rooms'    && <RoomManagementPage />}
           {page === 'service'  && <ServicePage />}
           {page === 'customer' && <CustomerPage />}
+          {page === 'therapist' && <TherapistPage />}
           {/* pages ที่ยังไม่มี component */}
-          {['therapist','promotion','stock','settings','logs'].includes(page) && (
+          {['promotion','stock','settings','logs'].includes(page) && (
             <div className="flex items-center justify-center h-64">
               <div className="text-center text-gray-400">
                 <p className="text-4xl mb-3">🚧</p>
