@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import { DonutChart } from '../components/charts/DonutChart'
 import { TherapistTimeline } from '../components/TherapistTimeline'
 import { PlanGate } from '../components/plan/PlanGate'
+import { DayBookingsModal } from '../components/DayBookingsModal'
 import type { DashboardSnapshot, QueueItem } from '../types/dashboard'
 import type { Page } from '../components/layout/Sidebar'
 
@@ -204,7 +205,7 @@ function QueuePanel({ snap, onNavigate }: { snap: DashboardSnapshot; onNavigate:
 }
 
 // Mini Calendar
-function MiniCalendar({ snap: _snap }: { snap: DashboardSnapshot }) {
+function MiniCalendar({ onSelectDate }: { snap: DashboardSnapshot; onSelectDate: (dateStr: string) => void }) {
   const now = new Date()
   const year = now.getFullYear()
   const month = now.getMonth()
@@ -213,9 +214,7 @@ function MiniCalendar({ snap: _snap }: { snap: DashboardSnapshot }) {
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const thMonths = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.']
   const days = ['อา','จ','อ','พ','พฤ','ศ','ส']
-
-  // ไม่มีข้อมูลการจองรายวันใน snapshot → ไฮไลต์เฉพาะวันนี้ (ไม่ mock)
-  const bookedDays = new Set<number>()
+  const pad = (n: number) => String(n).padStart(2, '0')
 
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
@@ -231,23 +230,20 @@ function MiniCalendar({ snap: _snap }: { snap: DashboardSnapshot }) {
         {Array.from({ length: daysInMonth }, (_, i) => {
           const d = i + 1
           const isToday = d === today
-          const hasBooking = bookedDays.has(d)
           return (
-            <div
+            <button
               key={d}
+              onClick={() => onSelectDate(`${year}-${pad(month + 1)}-${pad(d)}`)}
               className={`text-xs py-1 rounded-full cursor-pointer transition
-                ${isToday ? 'bg-violet-600 text-white font-bold' : hasBooking ? 'text-violet-700 font-medium' : 'text-gray-600 hover:bg-gray-100'}`}
+                ${isToday ? 'bg-violet-600 text-white font-bold' : 'text-gray-600 hover:bg-violet-100'}`}
             >
               {d}
-              {hasBooking && !isToday && (
-                <span className="block w-1 h-1 rounded-full bg-violet-400 mx-auto mt-0.5" />
-              )}
-            </div>
+            </button>
           )
         })}
       </div>
       <div className="mt-3 text-xs text-gray-400 text-center">
-        <span className="w-2 h-2 rounded-full bg-violet-600 inline-block mr-1" /> = วันนี้
+        คลิกวันที่เพื่อดูคิว · <span className="w-2 h-2 rounded-full bg-violet-600 inline-block mx-1" /> = วันนี้
       </div>
     </div>
   )
@@ -289,6 +285,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (page: Page)
   const { snapshot, isLoading, setSnapshot, setLoading } = useDashboardStore()
   const { connection } = useSignalRContext()
   const [scheduleKey, setScheduleKey] = useState(0)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   const fetchSnapshot = useCallback(async () => {
     setLoading(true)
@@ -419,7 +416,7 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (page: Page)
         </div>
         <div className="space-y-4">
           <QueuePanel snap={snap} onNavigate={onNavigate} />
-          <MiniCalendar snap={snap} />
+          <MiniCalendar snap={snap} onSelectDate={setSelectedDate} />
           <PlanGate required="Basic" currentPlan={planType} mode="blur">
             <NotificationPanel snap={snap} />
           </PlanGate>
@@ -446,6 +443,14 @@ export default function DashboardPage({ onNavigate }: { onNavigate: (page: Page)
           </button>
         ))}
       </div>
+
+      {selectedDate && (
+        <DayBookingsModal
+          date={selectedDate}
+          onClose={() => setSelectedDate(null)}
+          onGoToBookings={() => { setSelectedDate(null); onNavigate('booking') }}
+        />
+      )}
     </div>
   )
 }
