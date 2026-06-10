@@ -147,9 +147,13 @@ builder.Services.AddSignalR();
 builder.Services.AddHttpClient<NotificationSenderService>();
 builder.Services.AddHttpClient<LineService>();
 
-// CORS — รองรับทั้ง local dev และ production (Vercel)
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? ["http://localhost:5173"];
+// CORS — production origins (Vercel) + localhost dev ports เสมอ
+var configuredOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? [];
+var allowedOrigins = configuredOrigins
+    .Concat(["http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:5173"])
+    .Distinct()
+    .ToArray();
 
 builder.Services.AddCors(options =>
 {
