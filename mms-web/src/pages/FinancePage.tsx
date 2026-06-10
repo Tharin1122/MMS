@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { DateTimePicker } from '../components/DateTimePicker'
 
 interface RevenueSeries { period: string; label: string; revenue: number; receipts: number; discount: number }
 interface ByMethod { method: string; amount: number; count: number }
@@ -70,16 +71,14 @@ export default function FinancePage() {
           </select>
         </div>
       ) : (
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm flex flex-wrap items-end gap-2">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-3 shadow-sm flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs text-gray-400 mb-1">ตั้งแต่</label>
-            <input type="datetime-local" value={fromDt} onChange={e => setFromDt(e.target.value)}
-              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white" />
+            <DateTimePicker value={fromDt} onChange={setFromDt} />
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">ถึง</label>
-            <input type="datetime-local" value={toDt} onChange={e => setToDt(e.target.value)}
-              className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-700 dark:text-white" />
+            <DateTimePicker value={toDt} onChange={setToDt} />
           </div>
           <button onClick={fetchData} className="px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-sm rounded-lg transition">ค้นหา</button>
         </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client'
+import { DateTimePicker } from '../components/DateTimePicker'
 
 // ── Types ──────────────────────────────────────────
 interface RevenueSummary {
@@ -128,9 +129,9 @@ export default function ReportPage() {
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-1.5">
-              <input type="datetime-local" value={fromDt} onChange={e => setFromDt(e.target.value)} className={selectClass} />
+              <DateTimePicker value={fromDt} onChange={setFromDt} />
               <span className="text-xs text-gray-400">ถึง</span>
-              <input type="datetime-local" value={toDt} onChange={e => setToDt(e.target.value)} className={selectClass} />
+              <DateTimePicker value={toDt} onChange={setToDt} />
               <button onClick={load} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded-lg">ค้นหา</button>
             </div>
           )}

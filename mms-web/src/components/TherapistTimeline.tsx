@@ -16,7 +16,7 @@ const therapistStatusColor: Record<number, string> = {
 }
 
 const therapistStatusLabel: Record<number, string> = {
-  0: 'ออนไลน์', 1: 'กำลังนวด', 2: 'พัก', 3: 'ลา', 4: 'ออฟดิวตี้', 5: 'ออฟไลน์'
+  0: 'ว่าง', 1: 'ไม่ว่าง', 2: 'พัก', 3: 'ลา', 4: 'หยุด', 5: 'ออฟไลน์'
 }
 
 // สีตาม service category

@@ -63,7 +63,9 @@ export default function UserListPage({
           const isSelf = u.id === callerId
           const canManage = !isSelf && callerCanAssign
           return (
-            <div key={u.id} className="flex items-center justify-between px-4 py-3">
+            <div key={u.id}
+              onClick={() => !isSelf && setActionUser(u)}
+              className={`flex items-center justify-between px-4 py-3 transition ${isSelf ? '' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-sm font-medium overflow-hidden flex-shrink-0">
                   {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" /> : u.displayName.charAt(0).toUpperCase()}
