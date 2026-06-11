@@ -5,6 +5,7 @@ using MMS.Api.Attributes;
 using MMS.Api.Extensions;
 using MMS.Domain.Common;
 using MMS.Domain.Entities;
+using MMS.Domain.Enums;
 using MMS.Infrastructure.Persistence;
 
 namespace MMS.Api.Controllers;
@@ -58,6 +59,43 @@ public class CustomerController(AppDbContext db, MMS.Infrastructure.Persistence.
 
         if (customer == null) return NotFound(new { message = "Customer not found" });
         return Ok(customer);
+    }
+
+    // GET /api/customer/{id}/history — ประวัติการใช้บริการจริง (จากใบเสร็จที่ชำระแล้ว)
+    [HttpGet("{id:guid}/history")]
+    [RequirePermission(PermissionCodes.CustomerView)]
+    public async Task<IActionResult> GetHistory(Guid id)
+    {
+        var tenantId = User.GetTenantId();
+        var payments = await db.Payments
+            .Where(p => p.CustomerId == id && p.TenantId == tenantId
+                && p.Status == PaymentStatus.Paid && p.DeletedAt == null)
+            .OrderByDescending(p => p.PaidAt)
+            .Take(15)
+            .Select(p => new
+            {
+                p.PaidAt,
+                p.ReceiptNo,
+                items = p.Items.Select(i => new
+                {
+                    i.ServiceName,
+                    i.TherapistName,
+                    i.LineTotal
+                }).ToList()
+            })
+            .ToListAsync();
+
+        // แผ่รายการบริการแต่ละบรรทัด + วันที่ชำระ
+        var history = payments.SelectMany(p => p.items.Select(i => new
+        {
+            date = p.PaidAt,
+            serviceName = i.ServiceName,
+            therapistName = i.TherapistName,
+            amount = i.LineTotal,
+            receiptNo = p.ReceiptNo,
+        })).Take(20).ToList();
+
+        return Ok(history);
     }
 
     [HttpPost]
