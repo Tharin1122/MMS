@@ -20,6 +20,16 @@ public class AuthController(
     LineOtpService lineOtpService,
     IConfiguration config) : ControllerBase
 {
+    // คอนฟิก LINE สาธารณะ (frontend ใช้ init LIFF เพื่อ login ด้วย LINE)
+    [AllowAnonymous]
+    [HttpGet("line-config")]
+    public IActionResult LineConfig() => Ok(new
+    {
+        liffId = config["Line:LiffId"] ?? "",
+        channelId = config["Line:ChannelId"] ?? "",
+        enabled = !string.IsNullOrWhiteSpace(config["Line:LiffId"])
+    });
+
     // ----------------------------------------------------------------
     // QR Account Linking — แอดมินสร้างโทเคนผูก LINE ให้พนักงาน
     // ----------------------------------------------------------------
