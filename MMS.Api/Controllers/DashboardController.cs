@@ -259,6 +259,7 @@ public class DashboardController(
                 && i.DeletedAt == null)
             .Select(i => new
             {
+                ItemId = i.Id,
                 TherapistId = i.TherapistId!.Value,
                 i.StartTime,
                 i.EndTime,
@@ -278,6 +279,7 @@ public class DashboardController(
                 && i.DeletedAt == null)
             .Select(i => new
             {
+                ItemId = i.Id,
                 TherapistId = i.TherapistId!.Value,
                 StartTime = (DateTime?)i.Booking.BookingDate.ToDateTime(i.StartTime).AddHours(-7),
                 EndTime = (DateTime?)i.Booking.BookingDate.ToDateTime(i.EndTime).AddHours(-7),
@@ -297,6 +299,7 @@ public class DashboardController(
                 .Where(i => (Guid)i.TherapistId == t.Id)
                 .Select(i => new
                 {
+                    id = (Guid)i.ItemId,
                     startTime = (DateTime?)i.StartTime,
                     endTime = (DateTime?)i.EndTime,
                     serviceName = (string)i.ServiceName,
@@ -321,6 +324,53 @@ public class DashboardController(
     }
 
     /// <summary>
+    /// PATCH /api/dashboard/schedule/reschedule
+    /// ย้ายเวลา/เปลี่ยนหมอนวดของคิว (walk-in หรือ booking) จากการลากในตาราง Gantt
+    /// </summary>
+    [HttpPatch("schedule/reschedule")]
+    [RequirePermission(PermissionCodes.DashboardView)]
+    public async Task<IActionResult> RescheduleItem([FromBody] RescheduleRequest req)
+    {
+        var tenantId = User.GetTenantId();
+
+        if (!TimeOnly.TryParse(req.StartTime, out var startLocal))
+            return BadRequest(new { message = "รูปแบบเวลาไม่ถูกต้อง (HH:mm)" });
+
+        if (req.Source == "walkin")
+        {
+            var item = await db.WalkInItems
+                .FirstOrDefaultAsync(i => i.Id == req.ItemId && i.TenantId == tenantId && i.DeletedAt == null);
+            if (item == null) return NotFound(new { message = "ไม่พบคิว" });
+
+            // วันของคิวเดิม (local) แล้วตั้งเวลาเริ่มใหม่ → แปลงกลับเป็น UTC
+            var localDate = DateOnly.FromDateTime((item.StartTime ?? DateTime.UtcNow.AddHours(7)).AddHours(7));
+            var startUtc = localDate.ToDateTime(startLocal).AddHours(-7);
+            item.StartTime = startUtc;
+            item.EndTime = startUtc.AddMinutes(item.DurationMins);
+            if (req.TherapistId.HasValue) item.TherapistId = req.TherapistId.Value;
+
+            await db.SaveChangesAsync();
+            return Ok(new { message = "ย้ายคิวแล้ว", source = "walkin" });
+        }
+
+        if (req.Source == "booking")
+        {
+            var item = await db.BookingItems
+                .FirstOrDefaultAsync(i => i.Id == req.ItemId && i.TenantId == tenantId && i.DeletedAt == null);
+            if (item == null) return NotFound(new { message = "ไม่พบคิว" });
+
+            item.StartTime = startLocal;
+            item.EndTime = startLocal.Add(TimeSpan.FromMinutes(item.DurationMins));
+            if (req.TherapistId.HasValue) item.TherapistId = req.TherapistId.Value;
+
+            await db.SaveChangesAsync();
+            return Ok(new { message = "ย้ายคิวแล้ว", source = "booking" });
+        }
+
+        return BadRequest(new { message = "source ต้องเป็น walkin หรือ booking" });
+    }
+
+    /// <summary>
     /// POST /api/dashboard/broadcast
     /// Broadcast snapshot ไปยัง client ทุกคนในสาขา (ใช้ตอน manual refresh)
     /// </summary>
@@ -340,3 +390,5 @@ public class DashboardController(
         return Ok(new { message = "Dashboard snapshot broadcasted" });
     }
 }
+
+public record RescheduleRequest(string Source, Guid ItemId, string StartTime, Guid? TherapistId);
