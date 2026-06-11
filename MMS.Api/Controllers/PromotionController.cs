@@ -74,6 +74,49 @@ public class PromotionController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return Ok(new { message = "updated" });
     }
+
+    // GET /api/promotion/validate/{code} — ตรวจคูปอง/โปรโค้ดว่าใช้ได้ไหม (ใช้ตอน POS)
+    [HttpGet("validate/{code}")]
+    public async Task<IActionResult> Validate(string code)
+    {
+        var tid = User.GetTenantId();
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
+        code = (code ?? "").Trim().ToUpper();
+
+        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.TenantId == tid && c.DeletedAt == null
+            && c.Code.ToUpper() == code);
+        if (coupon != null)
+        {
+            if (!coupon.IsActive) return BadRequest(new { message = "คูปองถูกปิดใช้งาน" });
+            if (coupon.ExpiresAt.HasValue && coupon.ExpiresAt < today) return BadRequest(new { message = "คูปองหมดอายุแล้ว" });
+            if (coupon.Quota > 0 && coupon.UsedCount >= coupon.Quota) return BadRequest(new { message = "คูปองถูกใช้ครบโควต้าแล้ว" });
+            return Ok(new { type = "coupon", code = coupon.Code, label = coupon.Campaign, coupon.DiscountPercent, coupon.DiscountAmount });
+        }
+
+        var promo = await db.Promotions.FirstOrDefaultAsync(p => p.TenantId == tid && p.DeletedAt == null
+            && p.Code != null && p.Code.ToUpper() == code);
+        if (promo != null)
+        {
+            if (!promo.IsActive) return BadRequest(new { message = "โปรโมชันถูกปิดใช้งาน" });
+            if (promo.ExpiresAt.HasValue && promo.ExpiresAt < today) return BadRequest(new { message = "โปรโมชันหมดอายุแล้ว" });
+            return Ok(new { type = "promo", code = promo.Code, label = promo.Title, promo.DiscountPercent, promo.DiscountAmount });
+        }
+
+        return NotFound(new { message = "ไม่พบรหัสนี้" });
+    }
+
+    // POST /api/promotion/redeem-coupon/{code} — นับการใช้คูปอง (+1) ตอนชำระเงินจริง
+    [HttpPost("redeem-coupon/{code}")]
+    public async Task<IActionResult> RedeemCoupon(string code)
+    {
+        var tid = User.GetTenantId();
+        code = (code ?? "").Trim().ToUpper();
+        var coupon = await db.Coupons.FirstOrDefaultAsync(c => c.TenantId == tid && c.DeletedAt == null && c.Code.ToUpper() == code);
+        if (coupon == null) return Ok(new { message = "ไม่ใช่คูปอง (อาจเป็นโปรโมชัน) — ข้าม" });
+        coupon.UsedCount += 1;
+        await db.SaveChangesAsync();
+        return Ok(new { coupon.UsedCount });
+    }
 }
 
 public record PromotionRequest(string Title, string? Description, string? Code, decimal? DiscountPercent, decimal? DiscountAmount, DateOnly? ExpiresAt);
