@@ -102,10 +102,15 @@ public class TherapistController(AppDbContext db, IRealtimeService realtime) : C
             await db.Therapists.AnyAsync(t => t.LineUserId == user.LineUserId && t.DeletedAt == null))
             return BadRequest(new { message = "ผู้ใช้นี้เป็นหมอนวดอยู่แล้ว" });
 
+        // กันผูกซ้ำด้วย UserId
+        if (await db.Therapists.AnyAsync(t => t.UserId == user.Id && t.DeletedAt == null))
+            return BadRequest(new { message = "ผู้ใช้นี้เป็นหมอนวดอยู่แล้ว" });
+
         var therapist = new Therapist
         {
             TenantId = tenantId,
             BranchId = branchId,
+            UserId = user.Id,                 // ลิงก์บัญชีล็อกอิน → จำกัดสิทธิ์ตาม Role ของ user
             DisplayName = user.DisplayName,
             Phone = user.Phone,
             LineUserId = user.LineUserId,     // ผูกกับ account → user เห็นคิวตัวเองได้
