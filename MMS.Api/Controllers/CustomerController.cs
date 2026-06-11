@@ -42,7 +42,7 @@ public class CustomerController(AppDbContext db, MMS.Infrastructure.Persistence.
             {
                 c.Id, c.DisplayName, c.Phone, c.AvatarUrl,
                 c.TotalVisits, c.TotalSpent, c.LastVisitAt,
-                c.PreferredTherapistId, c.Notes
+                c.PreferredTherapistId, c.Notes, c.LoyaltyPoints
             })
             .ToListAsync();
 

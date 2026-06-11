@@ -13,6 +13,7 @@ public class Customer : TenantEntity
     public Guid? PreferredTherapistId { get; set; }
     public int TotalVisits { get; set; } = 0;
     public decimal TotalSpent { get; set; } = 0;
+    public int LoyaltyPoints { get; set; } = 0;   // แต้มสะสม (1 แต้ม / 100฿)
     public DateTime? LastVisitAt { get; set; }
 
     public Branch Branch { get; set; } = null!;

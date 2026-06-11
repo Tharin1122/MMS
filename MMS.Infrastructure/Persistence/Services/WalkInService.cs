@@ -254,6 +254,7 @@ public class WalkInService(AppDbContext db, IRealtimeService realtime)
         {
             customer.TotalVisits = customer.TotalVisits + 1;
             customer.TotalSpent = customer.TotalSpent + (walkIn.TotalAmount ?? 0);
+            customer.LoyaltyPoints += (int)((walkIn.TotalAmount ?? 0) / 100);  // 1 แต้ม / 100฿
             customer.LastVisitAt = now;
         }
 
