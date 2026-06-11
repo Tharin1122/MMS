@@ -11,41 +11,45 @@ namespace MMS.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class SettingsController(AppDbContext db) : ControllerBase
+public class RoleController(AppDbContext db) : ControllerBase
 {
-    // GET /api/settings → คืนค่า JSON การตั้งค่าของร้าน (หรือ {} ถ้ายังไม่เคยตั้ง)
-    [HttpGet]
-    public async Task<IActionResult> Get()
+    private const string MatrixKey = "__roleMatrix";
+
+    // GET /api/role/matrix → คืน matrix สิทธิ์ของแต่ละบทบาท (level 0/1/2 ต่อโมดูล) จาก DB
+    [HttpGet("matrix")]
+    public async Task<IActionResult> GetMatrix()
     {
         var tenantId = User.GetTenantId();
         var s = await db.TenantSettings
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null);
-        return Content(string.IsNullOrWhiteSpace(s?.SettingsJson) ? "{}" : s!.SettingsJson,
-            "application/json; charset=utf-8");
+
+        if (!string.IsNullOrWhiteSpace(s?.SettingsJson))
+        {
+            using var doc = JsonDocument.Parse(s!.SettingsJson);
+            if (doc.RootElement.TryGetProperty(MatrixKey, out var m))
+                return Content(m.GetRawText(), "application/json; charset=utf-8");
+        }
+        return Content("null", "application/json; charset=utf-8");
     }
 
-    // PUT /api/settings → บันทึกค่า JSON การตั้งค่า (ทั้งก้อน)
-    [HttpPut]
-    public async Task<IActionResult> Put([FromBody] JsonElement body)
+    // PUT /api/role/matrix → บันทึก matrix สิทธิ์ลง DB (merge เข้า settings blob เดิม ไม่ทับค่าอื่น)
+    [HttpPut("matrix")]
+    public async Task<IActionResult> PutMatrix([FromBody] JsonElement body)
     {
         var tenantId = User.GetTenantId();
 
         var s = await db.TenantSettings
             .FirstOrDefaultAsync(x => x.TenantId == tenantId && x.DeletedAt == null);
 
-        // รวมค่าใหม่เข้ากับ key ภายในที่ขึ้นต้นด้วย "__" (เช่น __roleMatrix) เพื่อไม่ให้ถูกทับ
         var dict = new Dictionary<string, JsonElement>();
-        if (body.ValueKind == JsonValueKind.Object)
-            foreach (var p in body.EnumerateObject())
-                dict[p.Name] = p.Value.Clone();
         if (!string.IsNullOrWhiteSpace(s?.SettingsJson))
         {
             using var doc = JsonDocument.Parse(s!.SettingsJson);
             if (doc.RootElement.ValueKind == JsonValueKind.Object)
                 foreach (var p in doc.RootElement.EnumerateObject())
-                    if (p.Name.StartsWith("__") && !dict.ContainsKey(p.Name))
-                        dict[p.Name] = p.Value.Clone();
+                    dict[p.Name] = p.Value.Clone();
         }
+        dict[MatrixKey] = body.Clone();
         var json = JsonSerializer.Serialize(dict);
 
         if (s == null)
@@ -60,6 +64,6 @@ public class SettingsController(AppDbContext db) : ControllerBase
         }
 
         await db.SaveChangesAsync();
-        return Ok(new { message = "บันทึกการตั้งค่าแล้ว" });
+        return Ok(new { message = "บันทึกสิทธิ์การเข้าถึงแล้ว" });
     }
 }
