@@ -17,8 +17,47 @@ public class WalkInController(
     AppDbContext db,
     WalkInService walkInService,
     IRealtimeService realtime,
-    ActivityTimelineService timeline) : ControllerBase
+    ActivityTimelineService timeline,
+    NotificationService notifications) : ControllerBase
 {
+    // ส่งแจ้งเตือน LINE ตอนจัดคิวให้หมอนวด: หาหมอนวด + แจ้งหมอนวด + แจ้งผู้จัดการ/เจ้าของ
+    private async Task NotifyAssignmentAsync(Guid walkInId, Guid therapistId)
+    {
+        var tenantId = User.GetTenantId();
+        var w = await db.WalkIns
+            .Include(x => x.Customer)
+            .Include(x => x.Items).ThenInclude(i => i.Service)
+            .FirstOrDefaultAsync(x => x.Id == walkInId);
+        if (w == null) return;
+
+        var therapist = await db.Therapists.FirstOrDefaultAsync(t => t.Id == therapistId);
+        var svcNames = string.Join(", ", w.Items.Select(i => i.Service.Name));
+        var custName = w.Customer?.DisplayName ?? "ลูกค้า";
+        var thName = therapist?.DisplayName ?? "หมอนวด";
+        var startLocal = (w.StartTime ?? DateTime.UtcNow).AddHours(7).ToString("HH:mm");
+
+        // 1) แจ้งหมอนวดที่ได้รับคิว (ผ่าน User ที่ผูก LINE)
+        if (therapist?.UserId != null)
+        {
+            var thUser = await db.Users.FirstOrDefaultAsync(u => u.Id == therapist.UserId);
+            if (!string.IsNullOrEmpty(thUser?.LineUserId))
+                await notifications.QueueLineToTherapistAsync(thUser.LineUserId,
+                    $"🔔 คุณได้รับคิวใหม่\nคิว {w.QueueNo} · {custName}\nบริการ: {svcNames}\nเริ่ม ~{startLocal} น.",
+                    "QueueAssigned", tenantId);
+        }
+
+        // 2) แจ้งผู้จัดการ/เจ้าของร้านที่ผูก LINE ไว้
+        var managerLineIds = await db.UserRoles
+            .Where(ur => ur.User.TenantId == tenantId && ur.User.DeletedAt == null
+                && ur.User.LineUserId != null
+                && (ur.Role.Name == "Owner" || ur.Role.Name == "Manager"))
+            .Select(ur => ur.User.LineUserId!).Distinct().ToListAsync();
+        foreach (var lid in managerLineIds)
+            await notifications.QueueLineToTherapistAsync(lid,
+                $"📋 จัดคิวแล้ว\nคิว {w.QueueNo} · {custName}\nบริการ: {svcNames}\nมอบหมาย: {thName} · เริ่ม ~{startLocal} น.",
+                "QueueAssignedManager", tenantId);
+    }
+
     [HttpGet]
     [RequirePermission(PermissionCodes.WalkInView)]
     public async Task<IActionResult> GetAll(
@@ -153,6 +192,9 @@ public class WalkInController(
             if (therapist != null)
                 await realtime.NotifyTherapistStatusChangedAsync(
                     branchId, req.TherapistId.Value, therapist.DisplayName, "Occupied", "Available");
+
+            // 🔔 LINE — แจ้งหมอนวดที่ได้คิว + ผู้จัดการ/เจ้าของ
+            try { await NotifyAssignmentAsync(id, req.TherapistId.Value); } catch { }
         }
 
         return Ok(new { message = "Therapist assigned" });
