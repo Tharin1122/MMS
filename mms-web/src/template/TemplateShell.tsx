@@ -52,6 +52,13 @@ export function TemplateShell({
             </a>
           ))}
         </nav>
+        <div style={{ margin: '8px 14px', padding: 14, borderRadius: 14, background: 'linear-gradient(135deg,#2a3358,#232a47)', cursor: 'pointer' }} onClick={() => onNavigate('settings')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <span>💎</span><span style={{ color: '#fff', fontWeight: 700, fontSize: 12.5 }}>แพ็กเกจ เริ่มต้น</span>
+          </div>
+          <p style={{ color: 'var(--side-text)', fontSize: 11, lineHeight: 1.4, margin: 0 }}>ปลดล็อกศักยภาพเต็มร้าน · รับงานออนไลน์ · รายงานเชิงลึก</p>
+          <button className="btn btn-pri btn-sm" style={{ width: '100%', marginTop: 10 }}>💎 อัปเกรดแพ็กเกจ</button>
+        </div>
         <div className="side-user">
           <div style={{ width: 34, height: 34, borderRadius: '50%', overflow: 'hidden', background: '#2b3252', display: 'grid', placeItems: 'center', color: '#fff' }}>
             {user?.avatarUrl ? <img src={user.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
@@ -68,9 +75,11 @@ export function TemplateShell({
         <header className="topbar">
           <button className="icon-btn" onClick={() => setOpen(o => !o)} style={{ display: 'none' }} data-mobile-toggle>☰</button>
           <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--ink)' }}>{title}</div>
+          <input placeholder="🔍 ค้นหาลูกค้า การจอง หมอนวด หรือเมนู..." style={{ marginLeft: 14, flex: '0 1 380px', height: 38, border: '1px solid var(--line)', borderRadius: 10, padding: '0 12px', fontSize: 13, background: 'var(--card-2)' }} />
           <div className="top-actions" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input placeholder="🔍 ค้นหา..." style={{ height: 36, border: '1px solid var(--line)', borderRadius: 10, padding: '0 12px', fontSize: 13, background: 'var(--card-2)' }} />
+            <button className="btn btn-pri btn-sm" style={{ height: 38 }} onClick={() => onNavigate('booking')}>+ สร้างการจอง</button>
             <button className="icon-btn">🔔</button>
+            <button className="icon-btn">💬</button>
             <button className="icon-btn" onClick={() => onNavigate('__profile')} title="โปรไฟล์">
               {user?.avatarUrl ? <img src={user.avatarUrl} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} /> : '👤'}
             </button>

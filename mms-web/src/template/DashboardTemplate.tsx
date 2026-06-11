@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { DashboardSnapshot } from '../types/dashboard'
+import { TherapistTimeline } from '../components/TherapistTimeline'
 
 const baht = (n: number) => (n ?? 0).toLocaleString('th-TH')
 
@@ -36,10 +37,10 @@ export function DashboardTemplate({ onNavigate }: { onNavigate: (k: string) => v
       <div>
         {/* stat cards */}
         <div className="stat-grid">
-          <Stat icon="💰" cls="ic-purple" label="รายรับวันนี้" val={baht(snap.revenue.totalRevenue)} unit="บาท" sub={`จาก ${snap.revenue.totalReceipts} บิล`} onClick={() => onNavigate('revenue')} />
-          <Stat icon="📈" cls="ic-green" label="รายรับเดือนนี้" val={baht(snap.monthlyRevenue.totalRevenue)} unit="บาท" sub={`จาก ${snap.monthlyRevenue.totalReceipts} บิล`} onClick={() => onNavigate('revenue')} />
-          <Stat icon="👥" cls="ic-orange" label="ลูกค้าวันนี้" val={String(q.totalToday)} unit="คน" sub={`รอคิว ${q.waiting} คน`} onClick={() => onNavigate('schedule')} />
-          <Stat icon="📅" cls="ic-blue" label="การจองวันนี้" val={String(snap.bookings.total)} unit="การจอง" sub={`รอดำเนินการ ${snap.bookings.pending}`} onClick={() => onNavigate('booking')} />
+          <Stat icon="💰" cls="ic-purple" label="รายรับวันนี้" val={baht(snap.revenue.totalRevenue)} unit="บาท" sub={`จาก ${snap.revenue.totalReceipts} บิล`} trend={`${snap.revenue.totalReceipts} บิล`} onClick={() => onNavigate('revenue')} />
+          <Stat icon="📈" cls="ic-green" label="รายรับเดือนนี้" val={baht(snap.monthlyRevenue.totalRevenue)} unit="บาท" sub={`จาก ${snap.monthlyRevenue.totalReceipts} บิล`} trend={`${snap.monthlyRevenue.totalReceipts} บิล`} onClick={() => onNavigate('revenue')} />
+          <Stat icon="👥" cls="ic-orange" label="ลูกค้าวันนี้" val={String(q.totalToday)} unit="คน" sub={`รอคิว ${q.waiting} คน`} trend={q.waiting > 0 ? `รอ ${q.waiting}` : undefined} onClick={() => onNavigate('schedule')} />
+          <Stat icon="📅" cls="ic-blue" label="การจองวันนี้" val={String(snap.bookings.total)} unit="การจอง" sub={`รอดำเนินการ ${snap.bookings.pending}`} trend={snap.bookings.pending > 0 ? `ใหม่ ${snap.bookings.pending}` : undefined} onClick={() => onNavigate('booking')} />
         </div>
 
         {/* donut + finance */}
@@ -77,28 +78,20 @@ export function DashboardTemplate({ onNavigate }: { onNavigate: (k: string) => v
                 <tr><td style={{ fontWeight: 700, color: 'var(--brand)' }}>รายรับรวมเดือนนี้</td><td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--brand)' }}>{snap.monthlyRevenue.totalRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</td></tr>
               </tbody>
             </table>
-            <div style={{ marginTop: 10, textAlign: 'right' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+              <div style={{ flex: 1, height: 6, borderRadius: 4, background: 'var(--line)', overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: '100%', background: 'var(--brand-grad)' }} />
+              </div>
               <button className="btn btn-soft btn-sm" onClick={() => onNavigate('revenue')}>ดูรายงานการเงิน</button>
             </div>
           </div>
         </div>
 
-        {/* therapist status */}
+        {/* schedule gantt timeline */}
         <div className="card card-pad">
-          <div className="card-h"><h3>หมอนวดวันนี้</h3></div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 8 }}>
-            {snap.therapists.list.length === 0 && <p style={{ color: 'var(--ink-3)', fontSize: 13 }}>ยังไม่มีหมอนวด</p>}
-            {snap.therapists.list.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid var(--line)', borderRadius: 12, padding: '8px 12px' }}>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--brand-soft)', display: 'grid', placeItems: 'center', overflow: 'hidden' }}>
-                  {t.avatarUrl ? <img src={t.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : t.displayName.charAt(0)}
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{t.displayName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--ink-3)' }}>{therStatus(t.currentStatus)}</div>
-                </div>
-              </div>
-            ))}
+          <div className="card-h"><h3>ตารางงานหมอนวดวันนี้</h3></div>
+          <div style={{ marginTop: 8 }}>
+            <TherapistTimeline refreshKey={0} />
           </div>
         </div>
       </div>
@@ -136,12 +129,12 @@ export function DashboardTemplate({ onNavigate }: { onNavigate: (k: string) => v
   )
 }
 
-function Stat({ icon, cls, label, val, unit, sub, onClick }: any) {
+function Stat({ icon, cls, label, val, unit, sub, trend, onClick }: any) {
   return (
     <div className="stat" style={{ cursor: 'pointer' }} onClick={onClick}>
       <div className="row1"><div className={`ic ${cls}`}>{icon}</div><span className="tt">{label}</span></div>
       <div className="val">{val} <small>{unit}</small></div>
-      <div className="row3"><span className="from">{sub}</span></div>
+      <div className="row3"><span className="from">{sub}</span>{trend && <span className="trend up">{trend}</span>}</div>
     </div>
   )
 }
