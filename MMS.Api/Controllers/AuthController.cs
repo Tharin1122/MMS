@@ -456,6 +456,53 @@ public class AuthController(
         });
     }
 
+    // POST /api/auth/test-line-push — ทดสอบส่ง LINE หาตัวเอง + คืน error จริงจาก LINE API
+    [HttpPost("test-line-push")]
+    [Authorize]
+    public async Task<IActionResult> TestLinePush()
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == User.GetUserId() && u.DeletedAt == null);
+        if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+        if (string.IsNullOrEmpty(user.LineUserId))
+            return Ok(new { ok = false, reason = "บัญชีนี้ยังไม่ได้ผูก LINE (ไม่มี LineUserId)" });
+
+        var token = config["Line:ChannelAccessToken"] ?? "";
+        if (string.IsNullOrWhiteSpace(token))
+            return Ok(new { ok = false, reason = "Line:ChannelAccessToken ไม่ได้ตั้งค่าใน env ของเซิร์ฟเวอร์" });
+
+        using var http = new HttpClient();
+        var req = new HttpRequestMessage(HttpMethod.Post, "https://api.line.me/v2/bot/message/push");
+        req.Headers.Add("Authorization", "Bearer " + token);
+        req.Content = System.Net.Http.Json.JsonContent.Create(new
+        {
+            to = user.LineUserId,
+            messages = new[] { new { type = "text", text = "🔔 ทดสอบส่งข้อความจากระบบ Tharin\nถ้าเห็นข้อความนี้ = ตั้งค่า LINE ถูกต้องแล้ว ✅" } }
+        });
+        var resp = await http.SendAsync(req);
+        var bodyText = await resp.Content.ReadAsStringAsync();
+
+        // ตรวจ token เป็นของ channel ไหน (เทียบ provider/channel)
+        string? botChannelId = null;
+        try
+        {
+            var info = await http.SendAsync(new HttpRequestMessage(HttpMethod.Get, "https://api.line.me/v2/bot/info")
+            { Headers = { { "Authorization", "Bearer " + token } } });
+            botChannelId = await info.Content.ReadAsStringAsync();
+        }
+        catch { }
+
+        return Ok(new
+        {
+            ok = resp.IsSuccessStatusCode,
+            httpStatus = (int)resp.StatusCode,
+            lineResponse = bodyText,
+            sentToLineUserId = user.LineUserId,
+            loginChannelIdConfig = config["Line:ChannelId"],
+            liffIdConfig = config["Line:LiffId"],
+            botInfo = botChannelId,
+        });
+    }
+
     public record UpdateMeRequest(string? DisplayName, string? Phone);
 
     // PUT /api/auth/me — แก้โปรไฟล์ตัวเอง (ชื่อ/เบอร์)
