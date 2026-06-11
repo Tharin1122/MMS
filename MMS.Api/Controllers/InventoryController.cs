@@ -29,6 +29,28 @@ public class InventoryController(AppDbContext db) : ControllerBase
         return Ok(new { summary, items });
     }
 
+    // สรุปยอดเบิกใช้เดือนนี้ (มูลค่า out movements ของเดือนปัจจุบัน) — ของจริงจาก DB
+    [HttpGet("stats")]
+    public async Task<IActionResult> Stats()
+    {
+        var tenantId = User.GetTenantId();
+        var now = DateTime.UtcNow;
+        var monthStart = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var rows = await db.StockMovements
+            .Where(m => m.TenantId == tenantId && m.DeletedAt == null
+                && m.Type == "out" && m.MovedAt >= monthStart)
+            .Join(db.InventoryItems, m => m.InventoryItemId, i => i.Id,
+                (m, i) => new { m.Quantity, i.CostPerUnit })
+            .ToListAsync();
+
+        return Ok(new
+        {
+            monthlyOutQty = rows.Sum(x => x.Quantity),
+            monthlyOutValue = rows.Sum(x => x.Quantity * x.CostPerUnit),
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] InventoryItemRequest r)
     {
