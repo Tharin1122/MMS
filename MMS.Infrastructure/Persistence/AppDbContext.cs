@@ -24,6 +24,11 @@ public class AppDbContext(
     public DbSet<ActivityTimeline> ActivityTimelines => Set<ActivityTimeline>();
     public DbSet<NotificationQueue> NotificationQueues => Set<NotificationQueue>();
     public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
+    public DbSet<InventoryItem> InventoryItems => Set<InventoryItem>();
+    public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<Promotion> Promotions => Set<Promotion>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<Expense> Expenses => Set<Expense>();
 
     // Phase 1 — Master Data
     public DbSet<Customer> Customers => Set<Customer>();
