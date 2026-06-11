@@ -4,7 +4,7 @@ import { useAuthStore } from '../../store/authStore'
 export type Page =
   | 'dashboard' | 'booking' | 'schedule' | 'customer'
   | 'service' | 'therapist' | 'revenue' | 'rooms' | 'promotion'
-  | 'stock' | 'roles' | 'settings' | 'report' | 'logs'
+  | 'stock' | 'roles' | 'settings' | 'report' | 'logs' | 'pos'
 
 interface NavItem {
   key: Page

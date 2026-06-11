@@ -3,7 +3,9 @@ import { useAuthStore } from './store/authStore'
 import { SignalRProvider } from './providers/SignalRProvider'
 import { CleaningCheckModal } from './components/CleaningCheckModal'
 import { ProfileModal } from './components/ProfileModal'
-import { Sidebar, type Page } from './components/layout/Sidebar'
+import { type Page } from './components/layout/Sidebar'
+import { TemplateShell, NAV } from './template/TemplateShell'
+import { DashboardTemplate } from './template/DashboardTemplate'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import WalkInPage from './pages/WalkInPage'
@@ -106,72 +108,42 @@ function AppContent() {
     setSidebarOpen(false)
   }
 
+  const onNav = (k: string) => {
+    if (k === '__profile') { setShowProfile(true); return }
+    navigate(k as Page)
+  }
+
+  const title = NAV.find(n => n.k === page)?.t ?? 'แดชบอร์ด'
+
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <>
       <CleaningCheckModal />
       {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
-
-      {/* Mobile overlay */}
-      {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <div className={`
-        ${isMobile ? 'fixed left-0 top-0 bottom-0 z-40 transition-transform' : 'relative'}
-        ${isMobile && !sidebarOpen ? '-translate-x-full' : 'translate-x-0'}
-      `}>
-        <Sidebar
-          currentPage={page}
-          onNavigate={navigate}
-          planType={planType}
-        />
-      </div>
-
-      {/* Main */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <TopBar onMenuToggle={() => setSidebarOpen(o => !o)} isMobile={isMobile} onProfileClick={() => setShowProfile(true)} />
-        <main className="flex-1 overflow-y-auto">
-          {page === 'dashboard' && <DashboardPage onNavigate={navigate} />}
-          {page === 'booking'   && <WalkInPage />}
-          {page === 'schedule'  && <QueueMonitorPage />}
-          {page === 'roles'     && !selectedUserId && (
-            <UserListPage
-              onSelectUser={(id, readonly) => {
-                setSelectedUserId(id)
-                setReadOnlyUser(readonly)
-              }}
-            />
-          )}
-          {page === 'roles' && selectedUserId && (
-            <UserPermissionsPage
-              userId={selectedUserId}
-              onBack={() => setSelectedUserId(null)}
-              readOnly={readOnlyUser}
-            />
-          )}
-          {page === 'report'   && <ReportPage />}
-          {page === 'revenue'  && <FinancePage />}
-          {page === 'rooms'    && <RoomManagementPage />}
-          {page === 'service'  && <ServicePage />}
-          {page === 'customer' && <CustomerPage />}
-          {page === 'therapist' && <TherapistPage />}
-          {/* pages ที่ยังไม่มี component */}
-          {['promotion','stock','settings','logs'].includes(page) && (
-            <div className="flex items-center justify-center h-64">
-              <div className="text-center text-gray-400">
-                <p className="text-4xl mb-3">🚧</p>
-                <p className="text-sm font-medium">อยู่ระหว่างพัฒนา</p>
-                <p className="text-xs mt-1">จะเปิดให้ใช้งานเร็วๆ นี้</p>
-              </div>
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
+      <TemplateShell current={page} onNavigate={onNav} title={title}>
+        {page === 'dashboard' && <DashboardTemplate onNavigate={onNav} />}
+        {page === 'booking'   && <WalkInPage />}
+        {page === 'schedule'  && <QueueMonitorPage />}
+        {page === 'roles'     && !selectedUserId && (
+          <UserListPage onSelectUser={(id, readonly) => { setSelectedUserId(id); setReadOnlyUser(readonly) }} />
+        )}
+        {page === 'roles' && selectedUserId && (
+          <UserPermissionsPage userId={selectedUserId} onBack={() => setSelectedUserId(null)} readOnly={readOnlyUser} />
+        )}
+        {page === 'report'   && <ReportPage />}
+        {page === 'revenue'  && <FinancePage />}
+        {page === 'rooms'    && <RoomManagementPage />}
+        {page === 'service'  && <ServicePage />}
+        {page === 'customer' && <CustomerPage />}
+        {page === 'therapist' && <TherapistPage />}
+        {['pos','promotion','stock','settings','logs'].includes(page) && (
+          <div style={{ textAlign: 'center', padding: 60, color: 'var(--ink-3)' }}>
+            <p style={{ fontSize: 40, marginBottom: 12 }}>🚧</p>
+            <p style={{ fontWeight: 600 }}>อยู่ระหว่างพัฒนา</p>
+            <p style={{ fontSize: 13 }}>จะเปิดให้ใช้งานเร็วๆ นี้</p>
+          </div>
+        )}
+      </TemplateShell>
+    </>
   )
 }
 
