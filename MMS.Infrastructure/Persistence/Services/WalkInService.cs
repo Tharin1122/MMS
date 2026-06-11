@@ -58,7 +58,7 @@ public class WalkInService(AppDbContext db, IRealtimeService realtime)
             BranchId = branchId,
             QueueNo = queueNo,
             CustomerId = req.CustomerId,
-            ArrivalTime = DateTime.UtcNow.AddHours(7), // Thai time
+            ArrivalTime = DateTime.UtcNow, // เก็บ UTC จริง (frontend แปลงเป็นเวลาไทยเอง)
             EstimatedWaitMins = estimatedWait,
             TotalAmount = totalAmount,
             Notes = req.Notes,
@@ -194,7 +194,7 @@ public class WalkInService(AppDbContext db, IRealtimeService realtime)
         if (walkIn.Status != WalkInStatus.Waiting)
             return (false, $"Cannot start walk-in with status {walkIn.Status}");
 
-        var now = DateTime.UtcNow.AddHours(7);
+        var now = DateTime.UtcNow;
         walkIn.Status = WalkInStatus.InService;
         walkIn.StartTime = now;
 
@@ -238,7 +238,7 @@ public class WalkInService(AppDbContext db, IRealtimeService realtime)
         if (walkIn.Status != WalkInStatus.InService)
             return (false, $"Cannot complete walk-in with status {walkIn.Status}");
 
-        var now = DateTime.UtcNow.AddHours(7);
+        var now = DateTime.UtcNow;
         walkIn.Status = WalkInStatus.Completed;
         walkIn.EndTime = now;
 
@@ -342,9 +342,9 @@ public class WalkInService(AppDbContext db, IRealtimeService realtime)
 
     private async Task<string> GenerateQueueNoAsync(Guid tenantId, Guid branchId)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
-        var todayStart = today.ToDateTime(TimeOnly.MinValue);
-        var todayEnd = today.ToDateTime(TimeOnly.MaxValue);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7)); // วันไทยปัจจุบัน
+        var todayStart = today.ToDateTime(TimeOnly.MinValue).AddHours(-7); // → ช่วง UTC
+        var todayEnd = today.ToDateTime(TimeOnly.MaxValue).AddHours(-7);
 
         var count = await db.WalkIns
             .CountAsync(w => w.TenantId == tenantId
