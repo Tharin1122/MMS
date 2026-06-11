@@ -23,6 +23,7 @@ public class AppDbContext(
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<ActivityTimeline> ActivityTimelines => Set<ActivityTimeline>();
     public DbSet<NotificationQueue> NotificationQueues => Set<NotificationQueue>();
+    public DbSet<TenantSetting> TenantSettings => Set<TenantSetting>();
 
     // Phase 1 — Master Data
     public DbSet<Customer> Customers => Set<Customer>();
