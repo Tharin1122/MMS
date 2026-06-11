@@ -16,7 +16,8 @@ namespace MMS.Api.Controllers;
 public class BookingController(
     AppDbContext db,
     BookingService bookingService,
-    IRealtimeService realtime) : ControllerBase
+    IRealtimeService realtime,
+    ActivityTimelineService timeline) : ControllerBase
 {
     [HttpGet]
     [RequirePermission(PermissionCodes.BookingView)]
@@ -131,6 +132,9 @@ public class BookingController(
         await realtime.NotifyBookingUpdatedAsync(
             branchId, result.BookingId!.Value, result.BookingNo!,
             "Pending", customer?.DisplayName ?? "");
+
+        await timeline.LogAsync("booking_created", "Booking", result.BookingId!.Value,
+            $"สร้างการจอง {result.BookingNo} · {customer?.DisplayName}", result.BookingNo);
 
         return Ok(new { message = "Booking created", bookingId = result.BookingId, bookingNo = result.BookingNo });
     }

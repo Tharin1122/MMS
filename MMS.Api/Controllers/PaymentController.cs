@@ -13,7 +13,7 @@ namespace MMS.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class PaymentController(AppDbContext db, PaymentService paymentService) : ControllerBase
+public class PaymentController(AppDbContext db, PaymentService paymentService, ActivityTimelineService timeline) : ControllerBase
 {
     // ──────────────────────────────────────────────
     // LIST / GET
@@ -122,6 +122,9 @@ public class PaymentController(AppDbContext db, PaymentService paymentService) :
 
         if (!result.Success)
             return BadRequest(new { message = result.Error });
+
+        await timeline.LogAsync("payment", "Payment", result.PaymentId!.Value,
+            $"รับชำระเงิน {result.TotalAmount:N0} บาท", result.ReceiptNo);
 
         return Ok(new
         {

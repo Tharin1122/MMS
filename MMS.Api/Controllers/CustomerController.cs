@@ -12,7 +12,7 @@ namespace MMS.Api.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [Authorize]
-public class CustomerController(AppDbContext db) : ControllerBase
+public class CustomerController(AppDbContext db, MMS.Infrastructure.Persistence.Services.ActivityTimelineService timeline) : ControllerBase
 {
     [HttpGet]
     [RequirePermission(PermissionCodes.CustomerView)]
@@ -81,6 +81,9 @@ public class CustomerController(AppDbContext db) : ControllerBase
 
         db.Customers.Add(customer);
         await db.SaveChangesAsync();
+
+        await timeline.LogAsync("customer_created", "Customer", customer.Id,
+            $"เพิ่มลูกค้าใหม่ · {customer.DisplayName}", customer.DisplayName);
 
         return CreatedAtAction(nameof(GetById), new { id = customer.Id }, new { customer.Id });
     }

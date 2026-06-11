@@ -16,7 +16,8 @@ namespace MMS.Api.Controllers;
 public class WalkInController(
     AppDbContext db,
     WalkInService walkInService,
-    IRealtimeService realtime) : ControllerBase
+    IRealtimeService realtime,
+    ActivityTimelineService timeline) : ControllerBase
 {
     [HttpGet]
     [RequirePermission(PermissionCodes.WalkInView)]
@@ -124,6 +125,9 @@ public class WalkInController(
             branchId, result.WalkInId!.Value, result.QueueNo!,
             customer?.DisplayName ?? "", "Waiting", result.EstimatedWaitMins);
 
+        await timeline.LogAsync("walkin_created", "WalkIn", result.WalkInId!.Value,
+            $"เปิดคิว {result.QueueNo} · {customer?.DisplayName}", result.QueueNo);
+
         return Ok(new
         {
             message = "Walk-in created",
@@ -189,6 +193,9 @@ public class WalkInController(
         // 🔔 Realtime — Queue เสร็จสิ้น
         await realtime.NotifyQueueUpdatedAsync(
             branchId, id, walkIn?.QueueNo ?? "", walkIn?.Customer.DisplayName ?? "", "Completed");
+
+        await timeline.LogAsync("walkin_completed", "WalkIn", id,
+            $"เสร็จบริการ {walkIn?.QueueNo} · {walkIn?.Customer.DisplayName}", walkIn?.QueueNo);
 
         // 🔔 Realtime — Therapist กลับเป็น Available
         if (walkIn != null)
