@@ -29,6 +29,8 @@ public class AppDbContext(
     public DbSet<Promotion> Promotions => Set<Promotion>();
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<ServicePackage> ServicePackages => Set<ServicePackage>();
+    public DbSet<CustomerPackage> CustomerPackages => Set<CustomerPackage>();
 
     // Phase 1 — Master Data
     public DbSet<Customer> Customers => Set<Customer>();
