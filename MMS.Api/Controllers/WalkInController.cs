@@ -6,6 +6,7 @@ using MMS.Api.Extensions;
 using MMS.Domain.Common;
 using MMS.Domain.Enums;
 using MMS.Infrastructure.Persistence;
+using MMS.Infrastructure.Persistence.Auth;
 using MMS.Infrastructure.Persistence.Services;
 
 namespace MMS.Api.Controllers;
@@ -18,9 +19,25 @@ public class WalkInController(
     WalkInService walkInService,
     IRealtimeService realtime,
     ActivityTimelineService timeline,
-    NotificationService notifications) : ControllerBase
+    NotificationService notifications,
+    LineOtpService lineNotify) : ControllerBase
 {
-    // ส่งแจ้งเตือน LINE ตอนจัดคิวให้หมอนวด: หาหมอนวด + แจ้งหมอนวด + แจ้งผู้จัดการ/เจ้าของ
+    // ดึง LINE ของผู้จัดการ/เจ้าของร้านที่ผูกไว้
+    private async Task<List<string>> ManagerLineIdsAsync(Guid tenantId)
+        => await db.UserRoles
+            .Where(ur => ur.User.TenantId == tenantId && ur.User.DeletedAt == null
+                && ur.User.LineUserId != null
+                && (ur.Role.Name == "Owner" || ur.Role.Name == "Manager"))
+            .Select(ur => ur.User.LineUserId!).Distinct().ToListAsync();
+
+    // ส่ง LINE ตรงทันที (เหมือน login alert) — เชื่อถือได้กว่ารอ Hangfire
+    private async Task SendLineToManyAsync(IEnumerable<string> lineIds, string message)
+    {
+        foreach (var id in lineIds.Where(x => !string.IsNullOrEmpty(x)).Distinct())
+        { try { await lineNotify.SendTextAsync(id, message); } catch { } }
+    }
+
+    // แจ้งเตือน LINE ตอนจัดคิว/เรียกคิวให้หมอนวด — ส่งตรงหาหมอนวด + ผู้จัดการ/เจ้าของ
     private async Task NotifyAssignmentAsync(Guid walkInId, Guid therapistId)
     {
         var tenantId = User.GetTenantId();
@@ -36,26 +53,18 @@ public class WalkInController(
         var thName = therapist?.DisplayName ?? "หมอนวด";
         var startLocal = (w.StartTime ?? DateTime.UtcNow).AddHours(7).ToString("HH:mm");
 
-        // 1) แจ้งหมอนวดที่ได้รับคิว (ผ่าน User ที่ผูก LINE)
+        // 1) แจ้งหมอนวดที่ได้รับคิว (ส่งตรง)
         if (therapist?.UserId != null)
         {
             var thUser = await db.Users.FirstOrDefaultAsync(u => u.Id == therapist.UserId);
             if (!string.IsNullOrEmpty(thUser?.LineUserId))
-                await notifications.QueueLineToTherapistAsync(thUser.LineUserId,
-                    $"🔔 คุณได้รับคิวใหม่\nคิว {w.QueueNo} · {custName}\nบริการ: {svcNames}\nเริ่ม ~{startLocal} น.",
-                    "QueueAssigned", tenantId);
+                await SendLineToManyAsync(new[] { thUser.LineUserId },
+                    $"🔔 คุณได้รับคิวใหม่\nคิว {w.QueueNo} · {custName}\nบริการ: {svcNames}\nเริ่ม ~{startLocal} น.");
         }
 
-        // 2) แจ้งผู้จัดการ/เจ้าของร้านที่ผูก LINE ไว้
-        var managerLineIds = await db.UserRoles
-            .Where(ur => ur.User.TenantId == tenantId && ur.User.DeletedAt == null
-                && ur.User.LineUserId != null
-                && (ur.Role.Name == "Owner" || ur.Role.Name == "Manager"))
-            .Select(ur => ur.User.LineUserId!).Distinct().ToListAsync();
-        foreach (var lid in managerLineIds)
-            await notifications.QueueLineToTherapistAsync(lid,
-                $"📋 จัดคิวแล้ว\nคิว {w.QueueNo} · {custName}\nบริการ: {svcNames}\nมอบหมาย: {thName} · เริ่ม ~{startLocal} น.",
-                "QueueAssignedManager", tenantId);
+        // 2) แจ้งผู้จัดการ/เจ้าของร้าน (ส่งตรง)
+        await SendLineToManyAsync(await ManagerLineIdsAsync(tenantId),
+            $"📋 เรียกคิวแล้ว\nคิว {w.QueueNo} · {custName}\nบริการ: {svcNames}\nมอบหมายให้: {thName} · เริ่ม ~{startLocal} น.");
     }
 
     [HttpGet]
@@ -166,6 +175,12 @@ public class WalkInController(
 
         await timeline.LogAsync("walkin_created", "WalkIn", result.WalkInId!.Value,
             $"เปิดคิว {result.QueueNo} · {customer?.DisplayName}", result.QueueNo);
+
+        // 🔔 LINE — แจ้งผู้จัดการ/เจ้าของว่ามีคิวใหม่
+        try {
+            await SendLineToManyAsync(await ManagerLineIdsAsync(tenantId),
+                $"🆕 มีคิวใหม่เข้ามา\nคิว {result.QueueNo} · {customer?.DisplayName ?? "ลูกค้า"}\nรอเรียกคิว/จัดหมอนวด");
+        } catch { }
 
         return Ok(new
         {

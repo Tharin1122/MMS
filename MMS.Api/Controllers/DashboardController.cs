@@ -16,8 +16,27 @@ namespace MMS.Api.Controllers;
 [Authorize]
 public class DashboardController(
     AppDbContext db,
-    IRealtimeService realtime) : ControllerBase
+    IRealtimeService realtime,
+    MMS.Infrastructure.Persistence.Auth.LineOtpService lineNotify) : ControllerBase
 {
+    // ส่ง LINE ตรงหาผู้จัดการ/เจ้าของ + หมอนวด (ใช้ตอนเลื่อนเวลาคิว)
+    private async Task NotifyRescheduleAsync(Guid tenantId, string custName, string thName, Guid? therapistUserId, string newTime, string queueNo)
+    {
+        var lineIds = await db.UserRoles
+            .Where(ur => ur.User.TenantId == tenantId && ur.User.DeletedAt == null && ur.User.LineUserId != null
+                && (ur.Role.Name == "Owner" || ur.Role.Name == "Manager"))
+            .Select(ur => ur.User.LineUserId!).ToListAsync();
+        if (therapistUserId != null)
+        {
+            var thLine = await db.Users.Where(u => u.Id == therapistUserId && u.LineUserId != null)
+                .Select(u => u.LineUserId!).FirstOrDefaultAsync();
+            if (thLine != null) lineIds.Add(thLine);
+        }
+        var msg = $"⏰ เปลี่ยนเวลาคิว\n{queueNo} · {custName}\nหมอนวด: {thName}\nเวลาใหม่: {newTime} น.";
+        foreach (var id in lineIds.Distinct())
+        { try { await lineNotify.SendTextAsync(id, msg); } catch { } }
+    }
+
     /// <summary>
     /// GET /api/dashboard
     /// ภาพรวมทั้งหมดของวันนี้สำหรับ Staff หน้าจอหลัก
@@ -386,6 +405,11 @@ public class DashboardController(
             if (req.TherapistId.HasValue) item.TherapistId = req.TherapistId.Value;
 
             await db.SaveChangesAsync();
+            try {
+                var w = await db.WalkIns.Include(x => x.Customer).FirstOrDefaultAsync(x => x.Id == item.WalkInId);
+                var th = req.TherapistId.HasValue ? await db.Therapists.FirstOrDefaultAsync(t => t.Id == req.TherapistId.Value) : null;
+                await NotifyRescheduleAsync(tenantId, w?.Customer?.DisplayName ?? "ลูกค้า", th?.DisplayName ?? "หมอนวด", th?.UserId, req.StartTime, w?.QueueNo ?? "คิว");
+            } catch { }
             return Ok(new { message = "ย้ายคิวแล้ว", source = "walkin" });
         }
 
@@ -400,6 +424,11 @@ public class DashboardController(
             if (req.TherapistId.HasValue) item.TherapistId = req.TherapistId.Value;
 
             await db.SaveChangesAsync();
+            try {
+                var bk = await db.Bookings.Include(x => x.Customer).FirstOrDefaultAsync(x => x.Id == item.BookingId);
+                var th = req.TherapistId.HasValue ? await db.Therapists.FirstOrDefaultAsync(t => t.Id == req.TherapistId.Value) : null;
+                await NotifyRescheduleAsync(tenantId, bk?.Customer?.DisplayName ?? "ลูกค้า", th?.DisplayName ?? "หมอนวด", th?.UserId, req.StartTime, bk?.BookingNo ?? "การจอง");
+            } catch { }
             return Ok(new { message = "ย้ายคิวแล้ว", source = "booking" });
         }
 
