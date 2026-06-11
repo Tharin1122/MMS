@@ -125,6 +125,12 @@ public class UserController(AppDbContext db, PasswordService passwordService) : 
 
         user!.DeletedAt = DateTime.UtcNow;
         user.IsActive = false;
+        user.Username = null;   // คืนชื่อผู้ใช้ให้สร้างใหม่ได้
+
+        // ลบโปรไฟล์หมอนวดที่ผูกกับ user นี้ด้วย (ถ้ามี)
+        var linkedTherapist = await db.Therapists.FirstOrDefaultAsync(t => t.UserId == id && t.DeletedAt == null);
+        if (linkedTherapist != null) linkedTherapist.DeletedAt = DateTime.UtcNow;
+
         await db.SaveChangesAsync();
         return Ok(new { message = "ลบพนักงานสำเร็จ" });
     }

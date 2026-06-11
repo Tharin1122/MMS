@@ -157,6 +157,19 @@ public class TherapistController(AppDbContext db, IRealtimeService realtime) : C
         if (therapist == null) return NotFound(new { message = "Therapist not found" });
 
         therapist.DeletedAt = DateTime.UtcNow;
+
+        // ลบบัญชีล็อกอินที่ผูกไว้ด้วย + คืน username ให้ใช้ซ้ำได้
+        if (therapist.UserId != null)
+        {
+            var linkedUser = await db.Users.FirstOrDefaultAsync(u => u.Id == therapist.UserId && u.DeletedAt == null);
+            if (linkedUser != null)
+            {
+                linkedUser.DeletedAt = DateTime.UtcNow;
+                linkedUser.IsActive = false;
+                linkedUser.Username = null;   // ปลดล็อกชื่อผู้ใช้ให้สร้างใหม่ได้
+            }
+        }
+
         await db.SaveChangesAsync();
         return Ok(new { message = "Deleted" });
     }
