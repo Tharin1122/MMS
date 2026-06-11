@@ -270,8 +270,14 @@ public class AuthController(
                 tenantId = user.TenantId,
                 branchId = user.BranchId,
                 username = user.Username,
+                phone = user.Phone,
                 hasPassword = !string.IsNullOrEmpty(user.PasswordHash),
                 hasLine = !string.IsNullOrEmpty(user.LineUserId),
+                roles = user.UserRoles
+                    .Where(ur => ur.ExpiresAt == null || ur.ExpiresAt > DateTime.UtcNow)
+                    .Select(ur => ur.Role.Name)
+                    .Where(n => !n.StartsWith("custom_"))
+                    .Distinct().ToList(),
             },
             permissions
         };
@@ -448,6 +454,42 @@ public class AuthController(
             hasLine = !string.IsNullOrEmpty(user.LineUserId),
             permissions = User.GetPermissions()
         });
+    }
+
+    public record UpdateMeRequest(string? DisplayName, string? Phone);
+
+    // PUT /api/auth/me — แก้โปรไฟล์ตัวเอง (ชื่อ/เบอร์)
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<IActionResult> UpdateMe([FromBody] UpdateMeRequest req)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == User.GetUserId() && u.DeletedAt == null);
+        if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+        if (!string.IsNullOrWhiteSpace(req.DisplayName)) user.DisplayName = req.DisplayName.Trim();
+        if (req.Phone != null) user.Phone = req.Phone.Trim();
+        await db.SaveChangesAsync();
+        return Ok(new { message = "อัปเดตโปรไฟล์แล้ว", displayName = user.DisplayName, phone = user.Phone });
+    }
+
+    public record ChangePasswordRequest(string? CurrentPassword, string NewPassword);
+
+    // POST /api/auth/change-password — เปลี่ยนรหัสผ่านตัวเอง (ยืนยันรหัสเดิมถ้ามี)
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        if (string.IsNullOrEmpty(req.NewPassword) || req.NewPassword.Length < 6)
+            return BadRequest(new { message = "รหัสผ่านใหม่ต้องยาวอย่างน้อย 6 ตัวอักษร" });
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == User.GetUserId() && u.DeletedAt == null);
+        if (user == null) return NotFound(new { message = "ไม่พบผู้ใช้" });
+        if (!string.IsNullOrEmpty(user.PasswordHash))
+        {
+            if (string.IsNullOrEmpty(req.CurrentPassword) || !passwordService.Verify(user, user.PasswordHash, req.CurrentPassword))
+                return BadRequest(new { message = "รหัสผ่านเดิมไม่ถูกต้อง" });
+        }
+        user.PasswordHash = passwordService.Hash(user, req.NewPassword);
+        await db.SaveChangesAsync();
+        return Ok(new { message = "เปลี่ยนรหัสผ่านเรียบร้อยแล้ว" });
     }
 
     /// <summary>
