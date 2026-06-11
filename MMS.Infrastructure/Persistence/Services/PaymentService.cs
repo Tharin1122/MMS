@@ -120,7 +120,7 @@ public class PaymentService(AppDbContext db)
             ChangeAmount = changeAmount,
             PaymentMethod = req.PaymentMethod,
             Status = PaymentStatus.Paid,
-            PaidAt = DateTime.UtcNow.AddHours(7),
+            PaidAt = DateTime.UtcNow,   // เก็บ UTC+0 (frontend แปลงเป็นเวลาไทยตอนแสดง)
             CashierId = cashierId,
             Notes = req.Notes
         };

@@ -30,7 +30,7 @@ public class ExpenseController(AppDbContext db) : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ExpenseRequest r)
     {
-        var e = new Expense { TenantId = User.GetTenantId(), BranchId = User.GetBranchId(), Category = r.Category, Note = r.Note, Amount = r.Amount, SpentAt = r.SpentAt ?? DateTime.UtcNow.AddHours(7) };
+        var e = new Expense { TenantId = User.GetTenantId(), BranchId = User.GetBranchId(), Category = r.Category, Note = r.Note, Amount = r.Amount, SpentAt = r.SpentAt ?? DateTime.UtcNow };
         db.Expenses.Add(e); await db.SaveChangesAsync();
         return Ok(new { e.Id });
     }

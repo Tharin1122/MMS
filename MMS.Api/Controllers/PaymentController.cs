@@ -161,8 +161,8 @@ public class PaymentController(AppDbContext db, PaymentService paymentService, A
         var tenantId = User.GetTenantId();
         var branchId = User.GetBranchId();
         var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow.AddHours(7));
-        var from = targetDate.ToDateTime(TimeOnly.MinValue);
-        var to = targetDate.ToDateTime(TimeOnly.MaxValue);
+        var from = targetDate.ToDateTime(TimeOnly.MinValue).AddHours(-7); // วันไทย → ช่วง UTC
+        var to = targetDate.ToDateTime(TimeOnly.MaxValue).AddHours(-7);
 
         var payments = await db.Payments
             .Where(p => p.TenantId == tenantId

@@ -121,7 +121,7 @@ public class RoomController(AppDbContext db,
         // คำนวณ estimatedAvailableAt ถ้าเป็น Cleaning
         DateTime? estimatedAvailableAt = null;
         if (req.Status == RoomStatus.Cleaning)
-            estimatedAvailableAt = DateTime.UtcNow.AddHours(7)
+            estimatedAvailableAt = DateTime.UtcNow   // UTC+0 (frontend แปลงเป็นเวลาไทย)
                 .AddMinutes(room.CleaningBufferMins);
 
         db.RoomStatusHistories.Add(new RoomStatusHistory
