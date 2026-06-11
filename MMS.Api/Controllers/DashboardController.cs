@@ -204,6 +204,41 @@ public class DashboardController(
             totalReceipts = monthPayments.Count,
         };
 
+        // ── Trends (เทียบช่วงก่อนหน้า เพื่อแสดง % เติบโตบนการ์ด) ──
+        var yesterday = today.AddDays(-1);
+        var yStartUtc = yesterday.ToDateTime(TimeOnly.MinValue).AddHours(-7);
+        var yEndUtc = yesterday.ToDateTime(TimeOnly.MaxValue).AddHours(-7);
+        var yRevenue = await db.Payments
+            .Where(p => p.TenantId == tenantId && p.BranchId == branchId && p.Status == PaymentStatus.Paid
+                && p.PaidAt >= yStartUtc && p.PaidAt <= yEndUtc && p.DeletedAt == null)
+            .SumAsync(p => (decimal?)p.TotalAmount) ?? 0;
+        var yWalkIns = await db.WalkIns.CountAsync(w => w.TenantId == tenantId && w.BranchId == branchId
+            && w.ArrivalTime >= yStartUtc && w.ArrivalTime <= yEndUtc && w.DeletedAt == null);
+        var yBookings = await db.Bookings.CountAsync(b => b.TenantId == tenantId && b.BranchId == branchId
+            && b.BookingDate == yesterday && b.DeletedAt == null);
+
+        // เดือนก่อน ช่วงเดียวกัน (วันที่ 1 ถึงวันเดียวกันของเดือน)
+        var lastMonth = thisMonth.AddMonths(-1);
+        var lastMonthStartUtc = lastMonth.AddHours(-7);
+        var lmDay = Math.Min(today.Day, DateTime.DaysInMonth(lastMonth.Year, lastMonth.Month));
+        var lastMonthEndUtc = new DateTime(lastMonth.Year, lastMonth.Month, lmDay)
+            .AddDays(1).AddHours(-7);
+        var lastMonthRevenue = await db.Payments
+            .Where(p => p.TenantId == tenantId && p.BranchId == branchId && p.Status == PaymentStatus.Paid
+                && p.PaidAt >= lastMonthStartUtc && p.PaidAt < lastMonthEndUtc && p.DeletedAt == null)
+            .SumAsync(p => (decimal?)p.TotalAmount) ?? 0;
+
+        static double Pct(decimal curr, decimal prev)
+            => prev <= 0 ? (curr > 0 ? 100 : 0) : Math.Round((double)((curr - prev) / prev) * 100, 1);
+
+        var trends = new
+        {
+            revenueDay = Pct(revenueSummary.totalRevenue, yRevenue),
+            revenueMonth = Pct(monthlyRevenue.totalRevenue, lastMonthRevenue),
+            customers = Pct(queueSummary.totalToday, yWalkIns),
+            bookings = Pct(bookingSummary.total, yBookings),
+        };
+
         // ── Plan Info ────────────────────────────────
         var tenant = await db.Tenants.FindAsync(tenantId);
         var planInfo = new
@@ -223,6 +258,7 @@ public class DashboardController(
             bookings = bookingSummary,
             revenue = revenueSummary,
             monthlyRevenue,
+            trends,
             plan = planInfo,
         };
 
